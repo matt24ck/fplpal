@@ -61,9 +61,28 @@ def download_season(
     return got, missing
 
 
+# Season-independent files at the archive root. master_team_list.csv maps
+# (season, season-scoped team id) -> team name — the only team-name source for
+# early seasons that have no teams.csv upstream.
+ROOT_FILES = ["master_team_list.csv"]
+
+
 def run_download(root: Path | None = None, force: bool = False) -> None:
     root = root or historical_root()
     with httpx.Client(timeout=120.0, follow_redirects=True) as client:
+        for rel in ROOT_FILES:
+            dest = root / rel
+            if dest.exists() and not force:
+                print(f"{rel}: cached")
+            else:
+                resp = client.get(f"{BASE}/{rel}")
+                if resp.status_code == 404:
+                    print(f"{rel}: missing upstream")
+                else:
+                    resp.raise_for_status()
+                    dest.parent.mkdir(parents=True, exist_ok=True)
+                    dest.write_bytes(resp.content)
+                    print(f"{rel}: downloaded ({len(resp.content) / 1e6:.1f} MB)")
         for season in SEASONS:
             got, missing = download_season(client, season, root, force)
             line = f"{season}: {len(got)}/{len(FILES)} files"
