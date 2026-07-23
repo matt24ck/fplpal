@@ -1,0 +1,50 @@
+{
+  "season": "2026-27",
+  "verified_against_game": false,
+  "notes": "Baseline copied from the 2025/26 ruleset. Every value must be verified against the live 2026/27 game before GW1; flip verified_against_game to true once checked.",
+  "squad": {
+    "size": 15,
+    "budget": 1000,
+    "positions": { "GKP": 2, "DEF": 5, "MID": 5, "FWD": 3 },
+    "max_per_club": 3,
+    "formation": {
+      "GKP": [1, 1],
+      "DEF": [3, 5],
+      "MID": [2, 5],
+      "FWD": [1, 3]
+    }
+  },
+  "transfers": {
+    "free_per_gw": 1,
+    "max_banked": 5,
+    "hit_cost": 4
+  },
+  "scoring": {
+    "appearance_short": 1,
+    "appearance_60": 2,
+    "goal": { "GKP": 6, "DEF": 6, "MID": 5, "FWD": 4 },
+    "assist": 3,
+    "clean_sheet": { "GKP": 4, "DEF": 4, "MID": 1, "FWD": 0 },
+    "goals_conceded_per_2": { "GKP": -1, "DEF": -1, "MID": 0, "FWD": 0 },
+    "saves_per_3": 1,
+    "penalty_save": 5,
+    "penalty_miss": -2,
+    "defensive_contribution": {
+      "points": 2,
+      "threshold": { "DEF": 10, "MID": 12, "FWD": 12 },
+      "def_counts": "clearances + blocks + interceptions + tackles",
+      "mid_fwd_counts": "clearances + blocks + interceptions + tackles + recoveries"
+    },
+    "yellow_card": -1,
+    "red_card": -3,
+    "own_goal": -2,
+    "bonus": [3, 2, 1]
+  },
+  "chips": {
+    "wildcard": { "count": 2, "halves": true },
+    "freehit": { "count": 2, "halves": true },
+    "bboost": { "count": 2, "halves": true },
+    "triple_captain": { "count": 2, "halves": true },
+    "first_half_deadline_gw": 19
+  }
+}
