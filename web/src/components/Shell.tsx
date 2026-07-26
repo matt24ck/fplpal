@@ -57,6 +57,19 @@ export function Shell({ children }: { children: React.ReactNode }) {
 
           <div className="ml-auto flex items-center gap-3">
             <DeadlineChip />
+            {/* About lives in the tab bar's blind spot — surface it up here on mobile */}
+            <Link
+              href="/about"
+              aria-current={pathname === "/about" ? "page" : undefined}
+              aria-label="About FPL Pal"
+              className={`flex h-8 w-8 items-center justify-center rounded-full lg:hidden ${
+                pathname === "/about"
+                  ? "bg-chalk/15 text-chalk"
+                  : "text-chalk/70 hover:text-chalk"
+              }`}
+            >
+              <AboutIcon />
+            </Link>
             {!onChatPage && !chatOpen && (
               <button
                 onClick={() => setChatOpen(true)}

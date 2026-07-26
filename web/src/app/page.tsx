@@ -11,7 +11,7 @@ import { ChipsCard } from "@/components/ChipsCard";
 import { PageShell, Segmented } from "@/components/PageShell";
 import { PitchView, type ChipData, type Slot } from "@/components/PitchView";
 import { PlayerDrawer } from "@/components/PlayerDrawer";
-import { SparkIcon } from "@/components/Shell";
+import { PalMark, SparkIcon } from "@/components/Shell";
 import { countdown, formatDeadline, pts } from "@/lib/format";
 import { useDraftLineup, useDraftSquad, useExplorer, useMeta } from "@/lib/hooks";
 import { useApp } from "@/lib/store";
@@ -151,6 +151,18 @@ export default function MyTeamPage() {
             names={names}
           />
           <ChipsCard />
+          {/* desktop finds About in the masthead nav; mobile gets it here */}
+          <Link
+            href="/about"
+            className="border-line bg-chalk flex items-center gap-2.5 rounded-xl border p-3.5 text-sm lg:hidden"
+          >
+            <PalMark className="h-6 w-6 shrink-0" />
+            <span className="text-slate min-w-0">
+              <span className="text-ink font-medium">How FPL Pal works</span> — the
+              engine computes, Pal explains.
+            </span>
+            <span className="text-royal ml-auto shrink-0">→</span>
+          </Link>
         </div>
       </div>
 

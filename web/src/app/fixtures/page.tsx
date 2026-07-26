@@ -24,12 +24,14 @@ export default function FixturesPage() {
 
       {data && (
         <div className="border-line overflow-x-auto rounded-lg border">
-          <table className="bg-chalk w-full min-w-[640px] border-collapse text-sm">
+          <table className="bg-chalk w-full border-collapse text-sm">
             <thead>
               <tr className="border-line text-slate border-b text-xs">
-                <th className="bg-chalk sticky left-0 px-3 py-2 text-left font-medium">Team</th>
+                <th className="bg-chalk sticky left-0 z-10 px-2 py-2 text-left font-medium md:px-3">
+                  Team
+                </th>
                 {data.gws.map((gw) => (
-                  <th key={gw} className="px-1 py-2 text-center font-medium">
+                  <th key={gw} className="px-0.5 py-2 text-center font-medium md:px-1">
                     GW{gw}
                   </th>
                 ))}
@@ -38,14 +40,17 @@ export default function FixturesPage() {
             <tbody>
               {data.teams.map(({ team, cells }) => (
                 <tr key={team} className="border-line border-b last:border-0">
-                  <th className="bg-chalk sticky left-0 px-3 py-1 text-left font-normal">
+                  <th className="bg-chalk sticky left-0 z-10 px-2 py-1 text-left font-normal md:px-3">
                     <Link
                       href={`/players?team=${encodeURIComponent(team)}`}
                       className="hover:text-royal flex items-center gap-1.5 font-medium"
                       title={`See ${team} players`}
                     >
                       <Shirt team={team} className="w-5 shrink-0" />
-                      {team}
+                      <span className="hidden md:inline">{team}</span>
+                      <span className="font-chip text-[10px] font-semibold md:hidden">
+                        {teamAbbrev(team)}
+                      </span>
                     </Link>
                   </th>
                   {cells.map((cell, i) => (

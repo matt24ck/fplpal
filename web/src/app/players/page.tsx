@@ -22,6 +22,27 @@ export default function PlayersPage() {
   );
 }
 
+const MOBILE_SORTS = [
+  { value: "xpts", label: "xPts" },
+  { value: "price", label: "Price" },
+  { value: "rating", label: "Rating" },
+  { value: "value", label: "xPts/£m" },
+];
+
+/** The one number the mobile card leads with — whatever it's sorted by. */
+function mobileStat(p: ExplorerPlayer, sortKey: string): { value: string; label: string } {
+  switch (sortKey) {
+    case "price":
+      return { value: price(p.price), label: "price" };
+    case "rating":
+      return { value: String(p.rating ?? "—"), label: "rating" };
+    case "value":
+      return { value: pts(p.xpts / (p.price / 10), 2), label: "xPts/£m" };
+    default:
+      return { value: pts(p.xpts), label: "xPts" };
+  }
+}
+
 function Explorer() {
   const { data, isLoading } = useExplorer();
   const params = useSearchParams();
@@ -103,8 +124,26 @@ function Explorer() {
           onChange={(e) => setQ(e.target.value)}
           placeholder="Search name or club"
           aria-label="Search players"
-          className="border-line bg-chalk focus:border-royal w-44 rounded-full border px-3.5 py-1.5 text-sm outline-none"
+          className="border-line bg-chalk focus:border-royal min-w-0 flex-1 rounded-full border px-3.5 py-1.5 text-sm outline-none md:w-44 md:flex-none"
         />
+        {/* one sort on mobile — the columns do this on desktop */}
+        <label className="text-slate flex items-center gap-1.5 text-xs md:hidden">
+          Sort
+          <select
+            value={MOBILE_SORTS.some((s) => s.value === sortKey) ? sortKey : "xpts"}
+            onChange={(e) => {
+              setSortKey(e.target.value);
+              setSortDir(-1);
+            }}
+            className="border-line bg-chalk text-ink rounded-full border px-2.5 py-1.5 text-sm"
+          >
+            {MOBILE_SORTS.map((s) => (
+              <option key={s.value} value={s.value}>
+                {s.label}
+              </option>
+            ))}
+          </select>
+        </label>
         {teamFilter && (
           <a href="/players" className="text-royal text-sm font-medium">
             {teamFilter} × clear
@@ -114,7 +153,39 @@ function Explorer() {
 
       {isLoading && <p className="text-slate text-sm">Loading the pool…</p>}
 
-      <div className="border-line overflow-x-auto rounded-lg border">
+      {/* mobile: tappable cards — shirt, price, run of fixtures, one stat */}
+      <div className="border-line overflow-hidden rounded-xl border md:hidden">
+        {rows.map((p) => {
+          const stat = mobileStat(p, sortKey);
+          return (
+            <button
+              key={p.code}
+              onClick={() => setSelected(p)}
+              className="border-line bg-chalk flex w-full items-center gap-2.5 border-b px-3 py-2.5 text-left last:border-b-0"
+            >
+              <Shirt team={p.team} className="w-8 shrink-0" />
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-medium">{p.player}</span>
+                <span className="text-slate block text-xs">
+                  {teamAbbrev(p.team)} · {price(p.price)}
+                </span>
+                <span className="mt-1 block">
+                  <FixtureTickerStrip fixtures={data?.fixtures[p.team] ?? []} n={3} />
+                </span>
+              </span>
+              <span className="shrink-0 text-right">
+                <span className="block font-mono text-base font-semibold">{stat.value}</span>
+                <span className="text-slate block text-[10px]">{stat.label}</span>
+              </span>
+            </button>
+          );
+        })}
+        {rows.length === 0 && !isLoading && (
+          <p className="bg-chalk text-slate p-4 text-center text-sm">No matches.</p>
+        )}
+      </div>
+
+      <div className="border-line hidden overflow-x-auto rounded-lg border md:block">
         <table className="bg-chalk w-full min-w-[760px] border-collapse text-sm">
           <thead>
             <tr className="border-line text-slate border-b text-left text-xs">
@@ -140,9 +211,9 @@ function Explorer() {
               <tr
                 key={p.code}
                 onClick={() => setSelected(p)}
-                className="border-line hover:bg-paper-2 cursor-pointer border-b last:border-0"
+                className="border-line hover:bg-paper-2 group cursor-pointer border-b last:border-0"
               >
-                <td className="sticky left-0 bg-inherit px-3 py-1.5">
+                <td className="bg-chalk group-hover:bg-paper-2 sticky left-0 px-3 py-1.5">
                   <span className="flex items-center gap-2">
                     <Shirt team={p.team} className="w-6 shrink-0" />
                     <span className="min-w-0">
@@ -168,9 +239,12 @@ function Explorer() {
           </tbody>
         </table>
       </div>
-      <p className="text-slate mt-2 text-xs">
+      <p className="text-slate mt-2 hidden text-xs md:block">
         Top 120 shown · sub-scores are percentiles within {pos} · click a row for the full
         breakdown.
+      </p>
+      <p className="text-slate mt-2 text-xs md:hidden">
+        Top 120 shown · tap a player for the full breakdown.
       </p>
 
       <PlayerDrawer player={selected} onClose={() => setSelected(null)} />
