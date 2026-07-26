@@ -7,6 +7,7 @@ import { useEffect, useRef } from "react";
 import { usePlayerProjection, useExplorer } from "@/lib/hooks";
 import { SUBSCORES, price, pts } from "@/lib/format";
 import type { ExplorerPlayer } from "@/lib/types";
+import { Shirt } from "./Shirt";
 import { DecompositionChart, FixtureTickerStrip, RatingDial, SubScoreBars } from "./viz";
 
 export function PlayerDrawer({
@@ -41,12 +42,15 @@ export function PlayerDrawer({
         className="bg-paper relative flex h-full w-full max-w-md flex-col overflow-y-auto p-5 shadow-2xl outline-none"
       >
         <div className="flex items-start justify-between gap-3">
-          <div>
-            <h2 className="font-hero text-2xl leading-tight">{player.player}</h2>
-            <p className="text-slate text-sm">
-              {player.team} · {player.position} ·{" "}
-              <span className="font-mono">{price(player.price)}</span>
-            </p>
+          <div className="flex items-center gap-3">
+            <Shirt team={player.team} className="w-12 shrink-0" />
+            <div>
+              <h2 className="font-hero text-2xl leading-tight">{player.player}</h2>
+              <p className="text-slate text-sm">
+                {player.team} · {player.position} ·{" "}
+                <span className="font-mono">{price(player.price)}</span>
+              </p>
+            </div>
           </div>
           <button
             onClick={onClose}

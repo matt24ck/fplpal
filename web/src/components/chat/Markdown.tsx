@@ -11,8 +11,8 @@ export function jumpToCard(toolId: string) {
   if (!el) return;
   if (el instanceof HTMLDetailsElement) el.open = true;
   el.scrollIntoView({ behavior: "smooth", block: "center" });
-  el.classList.add("ring-2", "ring-pitch-deep");
-  setTimeout(() => el.classList.remove("ring-2", "ring-pitch-deep"), 1400);
+  el.classList.add("ring-2", "ring-royal");
+  setTimeout(() => el.classList.remove("ring-2", "ring-royal"), 1400);
 }
 
 export function MiniMarkdown({

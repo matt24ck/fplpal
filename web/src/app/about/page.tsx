@@ -14,18 +14,18 @@ import { useExplorer, usePlayerProjection } from "@/lib/hooks";
 export default function AboutPage() {
   return (
     <div className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6">
-      <p className="font-chip text-pitch-deep text-xs font-semibold tracking-wide">
+      <p className="font-chip text-royal text-xs font-bold tracking-wider">
         How it works
       </p>
       <h1 className="font-hero mt-2 text-3xl leading-tight sm:text-4xl">
-        The assistant never invents a number.
+        Pal never invents a number.
       </h1>
       <p className="text-slate mt-4 max-w-xl leading-relaxed">
         Every projection, rating, and squad on this site is computed by a
         statistical engine and carries a timestamp saying which data it was
-        computed from. The AI&apos;s only job is to understand your question,
+        computed from. Pal&apos;s only job is to understand your question,
         run the engine&apos;s tools, and explain the results. If the engine
-        can&apos;t compute an answer, the assistant says so — it is not allowed
+        can&apos;t compute an answer, Pal says so — it is not allowed
         to guess.
       </p>
 
@@ -38,11 +38,11 @@ export default function AboutPage() {
       <div className="border-line mt-12 flex flex-wrap items-center gap-3 border-t pt-6">
         <Link
           href="/builder"
-          className="bg-pitch-deep text-chalk rounded-md px-4 py-2 text-sm font-medium"
+          className="btn-primary rounded-full px-4 py-2 text-sm"
         >
           Draft your squad
         </Link>
-        <Link href="/players" className="text-pitch-deep text-sm font-medium hover:underline">
+        <Link href="/players" className="text-royal text-sm font-medium hover:underline">
           Or browse the projections →
         </Link>
       </div>
@@ -94,7 +94,7 @@ function ChatbotContrast() {
               <p className="text-slate mt-1">{chatbot}</p>
             </div>
             <div className="border-line bg-chalk rounded-md border p-3">
-              <p className="font-chip text-pitch-deep text-[10px] font-semibold tracking-wide">
+              <p className="font-chip text-royal text-[10px] font-bold tracking-wide">
                 FPL Pal
               </p>
               <p className="mt-1">{board}</p>
@@ -144,7 +144,7 @@ function Layers() {
       <ol className="space-y-2.5">
         {layers.map((l) => (
           <li key={l.n} className="border-line bg-chalk flex gap-3 rounded-md border p-3">
-            <span className="font-hero text-pitch-deep text-lg leading-none">{l.n}</span>
+            <span className="font-hero text-royal text-lg leading-none">{l.n}</span>
             <span>
               <span className="block font-semibold">{l.title}</span>
               <span className="text-slate">{l.body}</span>
@@ -229,7 +229,7 @@ function KeptHonest() {
       <ul className="list-disc space-y-2 pl-5">
         <li>
           <strong>A hard contract:</strong> every statistic, ranking, or
-          recommendation the assistant states must come from an engine result
+          recommendation Pal states must come from an engine result
           in that conversation. Football knowledge is allowed for context and
           phrasing — never for numbers.
         </li>
@@ -240,7 +240,7 @@ function KeptHonest() {
         </li>
         <li>
           <strong>Adversarially tested:</strong> an automated suite tries to
-          bait the assistant into guessing — invented players, departed
+          bait Pal into guessing — invented players, departed
           players, &quot;just give me a rough estimate&quot; — and fails the build if it
           ever does.
         </li>

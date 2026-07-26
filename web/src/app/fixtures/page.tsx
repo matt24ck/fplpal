@@ -6,6 +6,7 @@
 
 import Link from "next/link";
 import { PageShell } from "@/components/PageShell";
+import { Shirt } from "@/components/Shirt";
 import { diffBand, diffBg, diffFg, teamAbbrev } from "@/lib/format";
 import { useFixturesMatrix } from "@/lib/hooks";
 
@@ -40,9 +41,10 @@ export default function FixturesPage() {
                   <th className="bg-chalk sticky left-0 px-3 py-1 text-left font-normal">
                     <Link
                       href={`/players?team=${encodeURIComponent(team)}`}
-                      className="hover:text-pitch-deep font-medium"
+                      className="hover:text-royal flex items-center gap-1.5 font-medium"
                       title={`See ${team} players`}
                     >
+                      <Shirt team={team} className="w-5 shrink-0" />
                       {team}
                     </Link>
                   </th>

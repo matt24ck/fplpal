@@ -1,14 +1,17 @@
 "use client";
 
 /** My Team — home. Pre-season: the draft on the board with overlays, the
- * This Week panel, and chip status. No draft yet → onboarding. */
+ * This Week panel, and chip status. No draft yet → the Ask Pal hero and
+ * onboarding. */
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { AskPalBar, useAskPal } from "@/components/AskPal";
 import { ChipsCard } from "@/components/ChipsCard";
 import { PageShell, Segmented } from "@/components/PageShell";
 import { PitchView, type ChipData, type Slot } from "@/components/PitchView";
 import { PlayerDrawer } from "@/components/PlayerDrawer";
+import { SparkIcon } from "@/components/Shell";
 import { countdown, formatDeadline, pts } from "@/lib/format";
 import { useDraftLineup, useDraftSquad, useExplorer, useMeta } from "@/lib/hooks";
 import { useApp } from "@/lib/store";
@@ -85,11 +88,16 @@ export default function MyTeamPage() {
     <PageShell
       title="My Team"
       right={
-        <Link href="/builder" className="text-pitch-deep text-sm font-medium hover:underline">
+        <Link href="/builder" className="text-royal text-sm font-medium hover:underline">
           Edit draft →
         </Link>
       }
     >
+      {/* Pal is a tab away on mobile — put the question box in reach */}
+      <div className="mb-4 lg:hidden">
+        <AskPalBar className="border-line border shadow-sm" />
+      </div>
+
       <div className="flex flex-col gap-6 xl:flex-row">
         <div className="min-w-0 flex-1">
           <div className="mb-3 flex flex-wrap items-center gap-2">
@@ -140,6 +148,7 @@ export default function MyTeamPage() {
             captain={sol?.starting_xi.find((p) => p.captain)?.player}
             formation={sol?.formation}
             flagged={flagged.map((f) => f.player)}
+            names={names}
           />
           <ChipsCard />
         </div>
@@ -155,13 +164,16 @@ function ThisWeek({
   captain,
   formation,
   flagged,
+  names,
 }: {
   projected?: number;
   captain?: string;
   formation?: string;
   flagged: string[];
+  names: string[];
 }) {
   const { data: meta } = useMeta();
+  const ask = useAskPal();
   const [now, setNow] = useState<Date | null>(null);
   useEffect(() => {
     setNow(new Date());
@@ -171,7 +183,7 @@ function ThisWeek({
   const dl = meta?.next_deadline;
 
   return (
-    <div className="border-line bg-chalk rounded-lg border p-4">
+    <div className="border-line bg-chalk rounded-xl border p-4">
       <h3 className="font-chip text-slate mb-2 text-xs font-semibold tracking-wide">
         This week
       </h3>
@@ -180,8 +192,8 @@ function ThisWeek({
           <Row label={`GW${dl.gw} deadline`}>
             {formatDeadline(dl.deadline_time)}
             {now && (
-              <span className="text-slate ml-1 font-mono text-xs">
-                ({countdown(dl.deadline_time, now)})
+              <span className="text-hot ml-1 font-mono text-xs font-semibold">
+                {countdown(dl.deadline_time, now)}
               </span>
             )}
           </Row>
@@ -201,6 +213,13 @@ function ThisWeek({
           )}
         </Row>
       </dl>
+      <button
+        onClick={() => ask(`Review my draft and its weak spots: ${names.join(", ")}`)}
+        className="border-line hover:border-royal hover:text-royal mt-3 flex w-full items-center justify-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium"
+      >
+        <SparkIcon className="h-3 w-3" />
+        Ask Pal to review this team
+      </button>
     </div>
   );
 }
@@ -219,23 +238,27 @@ function Onboarding({ drafted }: { drafted: number }) {
   const [idInput, setIdInput] = useState("");
 
   return (
-    <div className="mx-auto max-w-2xl">
-      <h2 className="font-hero mt-4 text-3xl leading-tight sm:text-4xl">
-        The 2026/27 season starts soon.
-        <br />
-        Draft it like an analyst.
-      </h2>
-      <p className="text-slate mt-3 max-w-lg">
-        Every number here is computed by a statistical engine — projections,
-        ratings, and optimal squads. The assistant explains them; it never
-        invents them.{" "}
-        <Link href="/about" className="text-pitch-deep font-medium hover:underline">
-          How it works →
-        </Link>
-      </p>
+    <div className="mx-auto max-w-3xl">
+      {/* the handshake: Pal, front and center */}
+      <section className="masthead text-chalk rounded-2xl px-6 py-8 sm:px-10 sm:py-12">
+        <p className="font-chip text-neon text-xs font-bold tracking-wider">
+          2026/27 · Pre-season
+        </p>
+        <h2 className="font-hero mt-2 text-3xl leading-tight sm:text-5xl">
+          Draft it like an analyst.
+        </h2>
+        <p className="text-chalk/75 mt-3 max-w-lg leading-relaxed">
+          Projections, ratings, and optimal squads — computed by a statistical
+          engine, explained by Pal. It never invents a number.{" "}
+          <Link href="/about" className="text-neon font-medium hover:underline">
+            How it works →
+          </Link>
+        </p>
+        <AskPalBar className="mt-6 max-w-xl" />
+      </section>
 
-      <div className="mt-8 grid gap-4 sm:grid-cols-2">
-        <div className="border-line bg-chalk rounded-lg border p-5">
+      <div className="mt-6 grid gap-4 sm:grid-cols-2">
+        <div className="border-line bg-chalk rounded-xl border p-5">
           <h3 className="font-chip text-sm font-semibold tracking-wide">Draft your squad</h3>
           <p className="text-slate mt-1 text-sm">
             {drafted > 0
@@ -244,13 +267,13 @@ function Onboarding({ drafted }: { drafted: number }) {
           </p>
           <Link
             href="/builder"
-            className="bg-pitch-deep text-chalk mt-4 inline-block rounded-md px-4 py-2 text-sm font-medium"
+            className="btn-primary mt-4 inline-block rounded-full px-4 py-2 text-sm"
           >
             {drafted > 0 ? "Continue draft" : "Open the Squad Builder"}
           </Link>
         </div>
 
-        <div className="border-line bg-chalk rounded-lg border p-5">
+        <div className="border-line bg-chalk rounded-xl border p-5">
           <h3 className="font-chip text-sm font-semibold tracking-wide">Have an FPL team?</h3>
           <p className="text-slate mt-1 text-sm">
             Save your team ID now — squad import opens after the GW1 deadline
@@ -259,7 +282,7 @@ function Onboarding({ drafted }: { drafted: number }) {
           {teamId ? (
             <p className="mt-4 text-sm">
               Saved: <span className="font-mono">{teamId}</span>{" "}
-              <button onClick={() => setTeamId(null)} className="text-pitch-deep underline">
+              <button onClick={() => setTeamId(null)} className="text-royal underline">
                 change
               </button>
             </p>
@@ -277,9 +300,9 @@ function Onboarding({ drafted }: { drafted: number }) {
                 inputMode="numeric"
                 placeholder="Team ID"
                 aria-label="FPL team ID"
-                className="border-line bg-paper w-32 rounded-md border px-3 py-2 font-mono text-sm"
+                className="border-line bg-paper w-32 rounded-full border px-3 py-2 font-mono text-sm"
               />
-              <button className="border-line rounded-md border px-3 py-2 text-sm font-medium">
+              <button className="border-line hover:border-royal rounded-full border px-4 py-2 text-sm font-medium">
                 Save
               </button>
             </form>
@@ -289,4 +312,3 @@ function Onboarding({ drafted }: { drafted: number }) {
     </div>
   );
 }
-

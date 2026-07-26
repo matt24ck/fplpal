@@ -8,6 +8,7 @@ import { Suspense, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { PageShell } from "@/components/PageShell";
 import { PlayerDrawer } from "@/components/PlayerDrawer";
+import { Shirt } from "@/components/Shirt";
 import { FixtureTickerStrip } from "@/components/viz";
 import { POSITIONS, SUBSCORES, SUBSCORE_LABELS, price, pts, teamAbbrev } from "@/lib/format";
 import { useExplorer } from "@/lib/hooks";
@@ -78,7 +79,7 @@ function Explorer() {
   return (
     <PageShell title="Players">
       <div className="mb-3 flex flex-wrap items-center gap-2">
-        <div role="tablist" aria-label="Position" className="border-line bg-paper-2 flex rounded-md border p-0.5">
+        <div role="tablist" aria-label="Position" className="border-line bg-paper-2 flex rounded-full border p-0.5">
           {POSITIONS.map((p) => (
             <button
               key={p}
@@ -89,8 +90,8 @@ function Explorer() {
                 if (!["player", "price", "xpts", "rating", "value", "p_play"].includes(sortKey))
                   setSortKey("xpts");
               }}
-              className={`rounded px-3 py-1.5 text-sm font-medium ${
-                pos === p ? "bg-chalk shadow-sm" : "text-slate"
+              className={`rounded-full px-3.5 py-1.5 text-sm font-semibold ${
+                pos === p ? "bg-deep text-chalk shadow-sm" : "text-slate hover:text-ink"
               }`}
             >
               {p}
@@ -102,10 +103,10 @@ function Explorer() {
           onChange={(e) => setQ(e.target.value)}
           placeholder="Search name or club"
           aria-label="Search players"
-          className="border-line bg-chalk w-44 rounded-md border px-3 py-1.5 text-sm"
+          className="border-line bg-chalk focus:border-royal w-44 rounded-full border px-3.5 py-1.5 text-sm outline-none"
         />
         {teamFilter && (
-          <a href="/players" className="text-pitch-deep text-sm">
+          <a href="/players" className="text-royal text-sm font-medium">
             {teamFilter} × clear
           </a>
         )}
@@ -142,8 +143,13 @@ function Explorer() {
                 className="border-line hover:bg-paper-2 cursor-pointer border-b last:border-0"
               >
                 <td className="sticky left-0 bg-inherit px-3 py-1.5">
-                  <span className="block max-w-44 truncate font-medium">{p.player}</span>
-                  <span className="text-slate text-xs">{teamAbbrev(p.team)}</span>
+                  <span className="flex items-center gap-2">
+                    <Shirt team={p.team} className="w-6 shrink-0" />
+                    <span className="min-w-0">
+                      <span className="block max-w-40 truncate font-medium">{p.player}</span>
+                      <span className="text-slate text-xs">{teamAbbrev(p.team)}</span>
+                    </span>
+                  </span>
                 </td>
                 <Td>{(p.price / 10).toFixed(1)}</Td>
                 <Td strong>{pts(p.xpts)}</Td>

@@ -1,20 +1,32 @@
 @import "tailwindcss";
 
-/* "Tactics room, match day" — UI_PLAN.md §7. Pitch green is reserved for the
-   board; pitch-deep doubles as the interactive accent. Viz colors are the
-   validated decomposition palette (dataviz six-checks, light surface). */
+/* FPL Pal brand: aubergine night + electric green→cyan accents over a quiet,
+   violet-tinted light canvas. The board keeps its pitch greens; viz colors are
+   the validated decomposition palette (dataviz six-checks, light surface). */
 /* `static` so vars used only from inline styles (viz palette, diff ramp)
    are still emitted — Tailwind v4 prunes un-referenced theme vars otherwise. */
 @theme static {
-  --color-paper: #f6f8f6;
-  --color-paper-2: #edf1ed;
-  --color-ink: #17211b;
-  --color-slate: #5c6b63;
-  --color-line: #dce3dd;
-  --color-pitch: #1e6b3c;
-  --color-pitch-light: #25794a;
-  --color-pitch-deep: #14532d;
+  /* canvas */
+  --color-paper: #f6f6fa;
+  --color-paper-2: #ececf4;
+  --color-ink: #191227;
+  --color-slate: #5d5972;
+  --color-line: #e2e0ec;
   --color-chalk: #ffffff;
+
+  /* brand */
+  --color-deep: #240540; /* aubergine night — masthead, stat bands, Pal */
+  --color-deep-2: #3a0a63; /* gradient stop */
+  --color-royal: #6316c5; /* interactive accent on light surfaces (8.5:1) */
+  --color-neon: #00ef85; /* electric green — fills with dark text only */
+  --color-neon-deep: #00b868; /* green accents small enough to sit on white */
+  --color-cyan: #04d9f5; /* electric cyan — fills/dark surfaces only */
+  --color-hot: #e0004d; /* deadlines, live, alerts */
+
+  /* the board */
+  --color-pitch: #1b7443;
+  --color-pitch-light: #248250;
+  --color-pitch-deep: #124f2c;
   --color-armband: #d9a62b;
   --color-card-yellow: #e8b93b;
   --color-card-red: #c0392b;
@@ -63,8 +75,35 @@ body {
   font-weight: 800;
 }
 
+/* masthead: aubergine night with a floodlight of green/cyan off-frame */
+.masthead {
+  background:
+    radial-gradient(70rem 18rem at 108% -60%, rgba(4, 217, 245, 0.28), transparent 62%),
+    radial-gradient(52rem 14rem at -6% 160%, rgba(0, 239, 133, 0.2), transparent 60%),
+    linear-gradient(108deg, #240540 0%, #3a0a63 56%, #1b0333 100%);
+}
+
+/* primary CTA: the electric gradient, dark text — FPL Pal's handshake */
+.btn-primary {
+  background: linear-gradient(100deg, var(--color-neon), var(--color-cyan));
+  color: #17052b;
+  font-weight: 600;
+  transition: filter 120ms ease, box-shadow 120ms ease;
+}
+.btn-primary:hover:not(:disabled) {
+  filter: brightness(1.06);
+  box-shadow: 0 2px 12px rgba(0, 239, 133, 0.35);
+}
+
+.text-brand-gradient {
+  background: linear-gradient(100deg, var(--color-neon), var(--color-cyan));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
 :focus-visible {
-  outline: 2px solid var(--color-pitch-deep);
+  outline: 2px solid #8b5cf6; /* readable on both paper and aubergine */
   outline-offset: 2px;
 }
 
@@ -81,10 +120,23 @@ body {
 .chip-highlight {
   animation: chip-pulse 1.2s ease-out infinite;
 }
+
+/* Pal presence: the assistant is here and grounded */
+@keyframes pal-breathe {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+.pal-dot {
+  animation: pal-breathe 2.6s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .chip-highlight {
     animation: none;
     box-shadow: 0 0 0 3px var(--color-chalk);
+  }
+  .pal-dot {
+    animation: none;
   }
   * {
     animation-duration: 0.01ms !important;
@@ -115,7 +167,7 @@ body {
   cursor: pointer;
 }
 .data-chip:hover {
-  border-color: var(--color-pitch-deep);
+  border-color: var(--color-royal);
 }
 
 ::-webkit-scrollbar { height: 8px; width: 8px; }

@@ -8,6 +8,7 @@ import { usePathname } from "next/navigation";
 import { useDraftSquad } from "@/lib/hooks";
 import { useApp } from "@/lib/store";
 import type { ChatMessage } from "@/lib/types";
+import { PalMark } from "../Shell";
 import { MiniMarkdown } from "./Markdown";
 import { ToolCard } from "./ToolCard";
 import { collectNumbers, useChat } from "./useChat";
@@ -55,12 +56,15 @@ export function ChatThread() {
     <div className="flex h-full min-h-0 flex-col">
       <div ref={scrollRef} className="min-h-0 flex-1 space-y-4 overflow-y-auto px-3 py-4" aria-live="polite">
         {messages.length === 0 && (
-          <div className="text-slate px-1 pt-2 text-sm">
-            <p className="text-ink font-medium">Ask the engine anything.</p>
-            <p className="mt-1 leading-relaxed">
-              Every number in a reply is computed by the statistical engine and shown
-              with its source — the assistant narrates, it never guesses.{" "}
-              <a href="/about" className="text-pitch-deep font-medium hover:underline">
+          <div className="text-slate px-1 pt-3 text-sm">
+            <PalMark className="h-8 w-8" />
+            <p className="font-hero text-ink mt-3 text-lg leading-tight">
+              Ask Pal anything.
+            </p>
+            <p className="mt-1.5 leading-relaxed">
+              Every number in a reply is computed by the statistical engine and
+              shown with its source — Pal narrates, it never guesses.{" "}
+              <a href="/about" className="text-royal font-medium hover:underline">
                 How it works →
               </a>
             </p>
@@ -77,7 +81,7 @@ export function ChatThread() {
             <button
               key={s.label}
               onClick={() => void send(s.prompt)}
-              className="border-line bg-chalk hover:border-pitch-deep rounded-full border px-3 py-1.5 text-xs"
+              className="border-line bg-chalk hover:border-royal hover:text-royal rounded-full border px-3 py-1.5 text-xs font-medium"
             >
               {s.label}
             </button>
@@ -98,14 +102,14 @@ export function ChatThread() {
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder={busy ? "Thinking…" : "Sell Saka for Palmer, or save?"}
-          aria-label="Ask the assistant"
+          placeholder={busy ? "Pal is thinking…" : "Sell Saka for Palmer, or save?"}
+          aria-label="Ask Pal"
           disabled={busy}
-          className="border-line bg-chalk min-w-0 flex-1 rounded-md border px-3 py-2 text-sm disabled:opacity-60"
+          className="border-line bg-chalk focus:border-royal min-w-0 flex-1 rounded-full border px-4 py-2 text-sm outline-none disabled:opacity-60"
         />
         <button
           disabled={busy || !input.trim()}
-          className="bg-pitch-deep text-chalk rounded-md px-3.5 py-2 text-sm font-medium disabled:opacity-50"
+          className="btn-primary rounded-full px-4 py-2 text-sm disabled:opacity-50"
         >
           Ask
         </button>
@@ -123,7 +127,7 @@ function Message({ message, streaming }: { message: ChatMessage; streaming: bool
   if (message.role === "user")
     return (
       <div className="flex justify-end">
-        <div className="bg-paper-2 max-w-[85%] rounded-lg rounded-br-sm px-3 py-2 text-sm">
+        <div className="bg-deep text-chalk max-w-[85%] rounded-xl rounded-br-sm px-3.5 py-2 text-sm">
           {message.parts.map((p, i) => (p.type === "text" ? <span key={i}>{p.text}</span> : null))}
         </div>
       </div>
@@ -140,12 +144,12 @@ function Message({ message, streaming }: { message: ChatMessage; streaming: bool
       )}
       {streaming && message.parts.length === 0 && (
         <p className="text-slate text-sm">
-          <span className="animate-pulse">thinking…</span>
+          <span className="animate-pulse">Pal is thinking…</span>
         </p>
       )}
       {message.error && (
         <p className="border-card-red/40 bg-card-red/5 rounded-md border px-3 py-2 text-sm">
-          The assistant hit a snag: <span className="font-mono text-xs">{message.error}</span>
+          Pal hit a snag: <span className="font-mono text-xs">{message.error}</span>
           {message.error.includes("chat → 5") || message.error.toLowerCase().includes("api")
             ? " — is the engine running with an ANTHROPIC_API_KEY?"
             : ""}

@@ -4,6 +4,7 @@
  * palette and difficulty ramp in globals.css — number + color everywhere,
  * never color alone (dataviz rules). */
 
+import { useId } from "react";
 import {
   DECOMP_COLORS,
   DECOMP_LABELS,
@@ -21,16 +22,23 @@ export function RatingDial({ rating, size = 72 }: { rating: number | null; size?
   const r = 30;
   const c = 2 * Math.PI * r;
   const frac = rating == null ? 0 : Math.max(0, Math.min(1, rating / 100));
+  const id = useId().replace(/[^a-zA-Z0-9-]/g, "");
   return (
     <div className="relative" style={{ width: size, height: size }}>
       <svg viewBox="0 0 72 72" width={size} height={size} role="img" aria-label={`Rating ${rating ?? "not rated"}`}>
+        <defs>
+          <linearGradient id={`dial-${id}`} x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stopColor="var(--color-neon-deep)" />
+            <stop offset="100%" stopColor="var(--color-cyan)" />
+          </linearGradient>
+        </defs>
         <circle cx="36" cy="36" r={r} fill="none" stroke="var(--color-paper-2)" strokeWidth="6" />
         <circle
           cx="36"
           cy="36"
           r={r}
           fill="none"
-          stroke="var(--color-pitch-deep)"
+          stroke={`url(#dial-${id})`}
           strokeWidth="6"
           strokeLinecap="round"
           strokeDasharray={`${frac * c} ${c}`}
@@ -60,8 +68,12 @@ export function SubScoreBars({
             <span className="text-slate w-24 shrink-0">{SUBSCORE_LABELS[name] ?? name}</span>
             <div className="bg-paper-2 h-2 flex-1 rounded-full" role="presentation">
               <div
-                className="bg-pitch h-2 rounded-full"
-                style={{ width: `${v ?? 0}%` }}
+                className="h-2 rounded-full"
+                style={{
+                  width: `${v ?? 0}%`,
+                  background:
+                    "linear-gradient(90deg, var(--color-neon-deep), var(--color-cyan))",
+                }}
               />
             </div>
             <span className="w-7 text-right font-mono">{v ?? "—"}</span>

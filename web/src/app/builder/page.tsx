@@ -91,7 +91,7 @@ export default function BuilderPage() {
   return (
     <PageShell title="Squad Builder">
       {/* budget + rules bar */}
-      <div className="border-line bg-chalk mb-4 rounded-lg border p-3">
+      <div className="border-line bg-chalk mb-4 rounded-xl border p-3">
         <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm">
           <span className="font-mono">
             <strong className={overBudget ? "text-card-red" : ""}>{price(spent)}</strong>
@@ -104,7 +104,7 @@ export default function BuilderPage() {
             <button
               onClick={() => optimize.mutate()}
               disabled={optimize.isPending || !explorer}
-              className="bg-pitch-deep text-chalk rounded-md px-3 py-1.5 text-sm font-medium disabled:opacity-50"
+              className="btn-primary rounded-full px-3.5 py-1.5 text-sm disabled:opacity-50"
             >
               {optimize.isPending
                 ? "Solving…"
@@ -116,7 +116,7 @@ export default function BuilderPage() {
               onClick={() => rate.mutate()}
               disabled={!complete || rate.isPending}
               title={complete ? undefined : "Pick all 15 first (2 GKP / 5 DEF / 5 MID / 3 FWD)"}
-              className="border-line rounded-md border px-3 py-1.5 text-sm font-medium disabled:opacity-50"
+              className="border-line hover:border-royal hover:text-royal rounded-full border px-3.5 py-1.5 text-sm font-medium disabled:opacity-50"
             >
               {rate.isPending ? "Rating…" : "Rate my draft"}
             </button>
@@ -169,7 +169,7 @@ export default function BuilderPage() {
           {rateResult ? (
             <RateCard result={rateResult} onDismiss={() => setRateResult(null)} />
           ) : (
-            <div className="border-line bg-chalk rounded-lg border p-4 text-sm">
+            <div className="border-line bg-chalk rounded-xl border p-4 text-sm">
               <h3 className="font-chip text-slate mb-2 text-xs font-semibold tracking-wide">
                 How this works
               </h3>
@@ -210,7 +210,7 @@ function RateCard({ result, onDismiss }: { result: SquadSolution; onDismiss: () 
   const weakest = [...result.starting_xi].sort((a, b) => a.xpts - b.xpts)[0];
   const captain = result.starting_xi.find((p) => p.captain);
   return (
-    <div className="border-line bg-chalk rounded-lg border p-4 text-sm">
+    <div className="border-line bg-chalk rounded-xl border p-4 text-sm">
       <div className="flex items-start justify-between">
         <h3 className="font-chip text-xs font-semibold tracking-wide">Draft verdict</h3>
         <button onClick={onDismiss} className="text-slate -mt-1 px-1" aria-label="Dismiss">
@@ -235,7 +235,7 @@ function RateCard({ result, onDismiss }: { result: SquadSolution; onDismiss: () 
         {weakest && (
           <p className="text-slate border-line mt-2 border-t pt-2 text-xs">
             Weakest starter: <strong className="text-ink">{weakest.player}</strong> (
-            {teamAbbrev(weakest.team)}, {pts(weakest.xpts)} pts). Ask the assistant for
+            {teamAbbrev(weakest.team)}, {pts(weakest.xpts)} pts). Ask Pal for
             alternatives.
           </p>
         )}

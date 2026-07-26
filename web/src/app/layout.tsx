@@ -22,11 +22,11 @@ const plexMono = IBM_Plex_Mono({
 export const metadata: Metadata = {
   title: "FPL Pal — your pal who does the maths",
   description:
-    "FPL projections, ratings and optimal squads computed by a statistical engine — explained by an AI assistant that never invents a number.",
+    "FPL projections, ratings and optimal squads computed by a statistical engine — explained by Pal, an AI assistant that never invents a number.",
 };
 
 export const viewport: Viewport = {
-  themeColor: "#f6f8f6",
+  themeColor: "#240540",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

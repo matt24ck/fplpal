@@ -15,7 +15,7 @@ export function ChipsCard() {
   const { data } = useMeta();
   if (!data) return null;
   return (
-    <div className="border-line bg-chalk rounded-lg border p-4">
+    <div className="border-line bg-chalk rounded-xl border p-4">
       <h3 className="font-chip text-slate mb-2 text-xs font-semibold tracking-wide">Chips</h3>
       <ul className="space-y-1.5">
         {Object.entries(data.chips).map(([key, chip]) => (
@@ -23,7 +23,7 @@ export function ChipsCard() {
             <span>{CHIP_LABELS[key] ?? key}</span>
             <span className="text-slate flex items-center gap-1 font-mono text-xs">
               {Array.from({ length: chip.count }).map((_, i) => (
-                <span key={i} className="text-pitch" aria-hidden>
+                <span key={i} className="text-neon-deep" aria-hidden>
                   ●
                 </span>
               ))}

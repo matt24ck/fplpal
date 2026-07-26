@@ -8,6 +8,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { price, pts, teamAbbrev } from "@/lib/format";
 import { useExplorer } from "@/lib/hooks";
 import type { ExplorerPlayer, Position } from "@/lib/types";
+import { Shirt } from "./Shirt";
 
 export function PlayerPicker({
   position,
@@ -77,7 +78,7 @@ export function PlayerPicker({
             onChange={(e) => setQ(e.target.value)}
             placeholder="Search name or club"
             aria-label="Search players"
-            className="border-line bg-chalk min-w-0 flex-1 rounded-md border px-3 py-1.5 text-sm"
+            className="border-line bg-chalk focus:border-royal min-w-0 flex-1 rounded-full border px-3.5 py-1.5 text-sm outline-none"
           />
           <button onClick={onClose} className="text-slate px-1 text-xl leading-none" aria-label="Close picker">
             ×
@@ -98,6 +99,7 @@ export function PlayerPicker({
                   }}
                   className="hover:bg-paper-2 flex w-full items-center gap-3 rounded-md px-2.5 py-2 text-left text-sm disabled:opacity-40"
                 >
+                  <Shirt team={p.team} className="w-7 shrink-0" />
                   <span className="min-w-0 flex-1">
                     <span className="block truncate font-medium">{p.player}</span>
                     <span className="text-slate block text-xs">

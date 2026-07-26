@@ -14,7 +14,7 @@ export default function PlannerPage() {
   return (
     <PageShell title="Planner">
       <div className="grid gap-4 sm:grid-cols-2">
-        <div className="border-line bg-chalk rounded-lg border p-5">
+        <div className="border-line bg-chalk rounded-xl border p-5">
           <h3 className="font-chip text-sm font-semibold tracking-wide">
             Planning unlocks after GW1
           </h3>
@@ -26,7 +26,7 @@ export default function PlannerPage() {
           </p>
           <Link
             href="/builder"
-            className="bg-pitch-deep text-chalk mt-4 inline-block rounded-md px-4 py-2 text-sm font-medium"
+            className="btn-primary mt-4 inline-block rounded-full px-4 py-2 text-sm"
           >
             Open the Squad Builder
           </Link>

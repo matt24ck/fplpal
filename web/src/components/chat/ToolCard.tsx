@@ -358,7 +358,7 @@ function SolutionCard({ r }: { r: Obj }) {
       {canApply && (
         <button
           onClick={() => setDraft(codes as number[])}
-          className="border-line hover:border-pitch-deep mt-2 rounded-md border px-3 py-1.5 text-xs font-medium"
+          className="border-line hover:border-royal hover:text-royal mt-2 rounded-full border px-3 py-1.5 text-xs font-medium"
         >
           Use as my draft
         </button>
