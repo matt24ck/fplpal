@@ -36,6 +36,18 @@ async def lifespan(_app: FastAPI):
 
 
 app = FastAPI(title="FPL AI Engine", version="0.1.0", lifespan=lifespan)
+
+
+@app.exception_handler(FileNotFoundError)
+async def _data_not_ready(_request: Request, _exc: FileNotFoundError):
+    # live parquets absent (first-boot seeding / mid-rebuild): a clean 503,
+    # not a 500 traceback — the UI shows its "engine offline" state
+    from fastapi.responses import JSONResponse
+
+    return JSONResponse(
+        status_code=503,
+        content={"detail": "engine data not ready — seeding or refresh in progress"},
+    )
 app.add_middleware(
     CORSMiddleware,
     # deployed: set CORS_ORIGINS to the web app's origin(s), comma-separated —

@@ -20,9 +20,9 @@ const plexMono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "The Board — FPL AI Assistant",
+  title: "FPL Pal — your pal who does the maths",
   description:
-    "FPL projections, ratings and squad optimization from a statistical engine, explained through grounded AI chat.",
+    "FPL projections, ratings and optimal squads computed by a statistical engine — explained by an AI assistant that never invents a number.",
 };
 
 export const viewport: Viewport = {

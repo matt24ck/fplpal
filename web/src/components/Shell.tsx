@@ -28,8 +28,11 @@ export function Shell({ children }: { children: React.ReactNode }) {
           aria-label="Main"
           className="border-line bg-paper sticky top-0 hidden h-dvh w-16 shrink-0 flex-col items-center gap-1 border-r pt-3 lg:flex"
         >
-          <Link href="/" className="mb-3 block" aria-label="The Board — home">
-            <span className="font-hero text-pitch-deep text-lg leading-none">TB</span>
+          <Link href="/" className="mb-3 block text-center" aria-label="FPL Pal — home">
+            <span className="font-hero text-pitch-deep block text-[13px] leading-none">FPL</span>
+            <span className="font-chip text-pitch-deep block text-[10px] font-bold leading-tight">
+              PAL
+            </span>
           </Link>
           {NAV.map(({ href, label, icon: Icon }) => {
             const active = pathname === href;

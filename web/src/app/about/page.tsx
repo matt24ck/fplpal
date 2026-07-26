@@ -95,7 +95,7 @@ function ChatbotContrast() {
             </div>
             <div className="border-line bg-chalk rounded-md border p-3">
               <p className="font-chip text-pitch-deep text-[10px] font-semibold tracking-wide">
-                This site
+                FPL Pal
               </p>
               <p className="mt-1">{board}</p>
             </div>

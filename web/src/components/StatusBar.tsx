@@ -9,7 +9,7 @@ export function StatusBar() {
     <footer className="border-line bg-paper text-slate fixed inset-x-0 bottom-14 z-30 hidden border-t px-4 py-1 font-mono text-[11px] lg:static lg:bottom-0 lg:block">
       {isError ? (
         <span className="text-card-red">
-          engine offline — start it with: uvicorn api.app:app
+          engine unavailable — refreshing data or briefly offline; numbers return shortly
         </span>
       ) : data ? (
         <span>

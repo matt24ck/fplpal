@@ -1,6 +1,6 @@
-# FPL AI Assistant
+# FPL Pal
 
-Fantasy Premier League assistant: a statistical engine (projections, position ratings, squad/transfer/chip optimization) fronted by a grounded natural-language chat. The LLM never invents numbers — every insight comes from the engine.
+Fantasy Premier League assistant — your pal who does the maths: a statistical engine (projections, position ratings, squad/transfer/chip optimization) fronted by a grounded natural-language chat. The LLM never invents numbers — every insight comes from the engine. The pitch view at the heart of the UI is "The Board".
 
 - **[PLAN.md](PLAN.md)** — product, modeling, and architecture plan
 - **[UI_PLAN.md](UI_PLAN.md)** — interface plan ("The Board")
