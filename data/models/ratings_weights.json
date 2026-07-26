@@ -1,0 +1,33 @@
+{
+  "GKP": {
+    "clean_sheets": 0.4695,
+    "saves": 0.0,
+    "bonus": 0.0033,
+    "value": 0.3694,
+    "minutes": 0.1578
+  },
+  "DEF": {
+    "clean_sheets": 0.1751,
+    "attacking": 0.2133,
+    "dc_floor": 0.0587,
+    "bonus": 0.103,
+    "value": 0.4499,
+    "minutes": 0.0
+  },
+  "MID": {
+    "attacking": 0.3976,
+    "involvement": 0.0798,
+    "floor": 0.2752,
+    "explosiveness": 0.0,
+    "value": 0.1686,
+    "minutes": 0.0788
+  },
+  "FWD": {
+    "attacking": 0.3919,
+    "involvement": 0.0,
+    "floor": 0.6081,
+    "explosiveness": 0.0,
+    "value": 0.0,
+    "minutes": 0.0
+  }
+}

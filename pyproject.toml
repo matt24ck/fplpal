@@ -17,6 +17,7 @@ dependencies = [
     "uvicorn>=0.30",
     "anthropic>=0.116",
     "python-dotenv>=1.0",
+    "apscheduler>=3.10",
 ]
 
 [project.optional-dependencies]

@@ -7,8 +7,13 @@ __pycache__/
 .ruff_cache/
 dist/
 
-# Data — raw snapshots and downloads live outside git
-data/
+# Data — raw snapshots and downloads live outside git, EXCEPT the tiny cached
+# rating-weights JSON (committing it saves a deployed first boot from refitting
+# via a full 2025-26 replay)
+data/*
+!data/models/
+data/models/*
+!data/models/ratings_weights.json
 
 # Node / Next.js (web/)
 node_modules/

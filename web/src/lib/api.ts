@@ -11,6 +11,11 @@ import type {
 /** Proxied to the FastAPI engine via next.config.ts rewrites. */
 const BASE = "/api/engine";
 
+/** Chat goes direct to the engine in production (Vercel's rewrite proxy
+ * times out on long SSE streams). Falls back to the same-origin proxy in
+ * dev. Build-time inlined — set in the Vercel project env. */
+const CHAT_BASE = process.env.NEXT_PUBLIC_CHAT_API_URL || BASE;
+
 async function get<T>(path: string): Promise<T> {
   const res = await fetch(`${BASE}${path}`);
   if (!res.ok) throw new Error(`${path} → ${res.status}`);
@@ -51,12 +56,13 @@ export async function* streamChat(
   messages: { role: string; content: string }[],
   signal?: AbortSignal,
 ): AsyncGenerator<ChatEvent> {
-  const res = await fetch(`${BASE}/chat`, {
+  const res = await fetch(`${CHAT_BASE}/chat`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ messages }),
     signal,
   });
+  if (res.status === 429) throw new Error("chat rate limit reached — try again in a little while");
   if (!res.ok || !res.body) throw new Error(`chat → ${res.status}`);
   const reader = res.body.getReader();
   const decoder = new TextDecoder();

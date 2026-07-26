@@ -10,22 +10,36 @@ Run: ``uvicorn api.app:app --reload``
 
 from __future__ import annotations
 
+import os
+import time
+from contextlib import asynccontextmanager
+
 import numpy as np
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from api import tools as t
 from api.data import get_store
+from api.jobs import jobs_enabled, start_background
 from engine.config.season import load_season
 from engine.ingest.snapshot import latest_snapshot
 from engine.models.ratings import SUBSCORES
 
-app = FastAPI(title="FPL AI Engine", version="0.1.0")
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    if jobs_enabled():
+        start_background()
+    yield
+
+
+app = FastAPI(title="FPL AI Engine", version="0.1.0", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # Next.js dev server
+    # deployed: set CORS_ORIGINS to the web app's origin(s), comma-separated
+    allow_origins=os.environ.get("CORS_ORIGINS", "http://localhost:3000").split(","),
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -33,7 +47,11 @@ app.add_middleware(
 
 @app.get("/health")
 def health() -> dict:
-    return {"ok": True, **get_store().provenance}
+    try:
+        return {"ok": True, **get_store().provenance}
+    except FileNotFoundError:
+        # first boot on an empty volume: the jobs thread is still seeding
+        return {"ok": False, "status": "no live data yet — seeding/pipeline pending"}
 
 
 @app.get("/meta")
@@ -219,8 +237,32 @@ class ChatRequest(BaseModel):
     messages: list[dict] = Field(min_length=1)
 
 
+# Chat spends real money per request — fixed-window per-IP limit (in-memory,
+# single-process; fine at MVP scale with one uvicorn worker).
+CHAT_LIMIT_PER_HOUR = int(os.environ.get("CHAT_RATE_LIMIT_PER_HOUR", "30"))
+_chat_hits: dict[str, list[float]] = {}
+
+
+def _client_ip(request: Request) -> str:
+    fwd = request.headers.get("x-forwarded-for")
+    if fwd:
+        return fwd.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
+
 @app.post("/chat")
-def chat(req: ChatRequest) -> StreamingResponse:
+def chat(req: ChatRequest, request: Request) -> StreamingResponse:
+    ip = _client_ip(request)
+    now = time.time()
+    hits = [ts for ts in _chat_hits.get(ip, []) if now - ts < 3600]
+    if len(hits) >= CHAT_LIMIT_PER_HOUR:
+        raise HTTPException(
+            status_code=429,
+            detail="chat rate limit reached — try again in a little while",
+        )
+    hits.append(now)
+    _chat_hits[ip] = hits
+
     from api.chat import chat_stream
 
     return StreamingResponse(chat_stream(req.messages), media_type="text/event-stream")
