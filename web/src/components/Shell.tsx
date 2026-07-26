@@ -12,6 +12,7 @@ const NAV = [
   { href: "/planner", label: "Planner", short: "Plan", icon: PlanIcon },
   { href: "/players", label: "Players", short: "Players", icon: PlayersIcon },
   { href: "/fixtures", label: "Fixtures", short: "Fixtures", icon: FixturesIcon },
+  { href: "/about", label: "About", short: "About", icon: AboutIcon },
 ];
 
 export function Shell({ children }: { children: React.ReactNode }) {
@@ -153,6 +154,16 @@ function FixturesIcon() {
     </svg>
   );
 }
+function AboutIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden>
+      <circle cx="10" cy="10" r="7.5" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M10 9v4.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      <circle cx="10" cy="6.2" r="1" fill="currentColor" />
+    </svg>
+  );
+}
+
 function ChatIcon() {
   return (
     <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden>

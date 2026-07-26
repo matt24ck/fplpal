@@ -228,7 +228,10 @@ function Onboarding({ drafted }: { drafted: number }) {
       <p className="text-slate mt-3 max-w-lg">
         Every number here is computed by a statistical engine — projections,
         ratings, and optimal squads. The assistant explains them; it never
-        invents them.
+        invents them.{" "}
+        <Link href="/about" className="text-pitch-deep font-medium hover:underline">
+          How it works →
+        </Link>
       </p>
 
       <div className="mt-8 grid gap-4 sm:grid-cols-2">

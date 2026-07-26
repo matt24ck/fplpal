@@ -38,8 +38,13 @@ async def lifespan(_app: FastAPI):
 app = FastAPI(title="FPL AI Engine", version="0.1.0", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
-    # deployed: set CORS_ORIGINS to the web app's origin(s), comma-separated
-    allow_origins=os.environ.get("CORS_ORIGINS", "http://localhost:3000").split(","),
+    # deployed: set CORS_ORIGINS to the web app's origin(s), comma-separated —
+    # tolerate stray spaces and trailing slashes, which browsers never send
+    allow_origins=[
+        o.strip().rstrip("/")
+        for o in os.environ.get("CORS_ORIGINS", "http://localhost:3000").split(",")
+        if o.strip()
+    ],
     allow_methods=["*"],
     allow_headers=["*"],
 )

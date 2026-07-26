@@ -59,7 +59,10 @@ export function ChatThread() {
             <p className="text-ink font-medium">Ask the engine anything.</p>
             <p className="mt-1 leading-relaxed">
               Every number in a reply is computed by the statistical engine and shown
-              with its source — the assistant narrates, it never guesses.
+              with its source — the assistant narrates, it never guesses.{" "}
+              <a href="/about" className="text-pitch-deep font-medium hover:underline">
+                How it works →
+              </a>
             </p>
           </div>
         )}
