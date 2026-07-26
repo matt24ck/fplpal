@@ -9,6 +9,14 @@ dependencies = [
     "pandas>=2.2",
     "pyarrow>=16.0",
     "scipy>=1.13",
+    "lightgbm>=4.3",
+    "scikit-learn>=1.5",
+    "pulp>=2.8",
+    "highspy>=1.7",
+    "fastapi>=0.111",
+    "uvicorn>=0.30",
+    "anthropic>=0.116",
+    "python-dotenv>=1.0",
 ]
 
 [project.optional-dependencies]

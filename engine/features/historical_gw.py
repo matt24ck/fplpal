@@ -19,6 +19,9 @@ Season quirks handled here (verified against the actual files):
 - Defensive-count stats (cbi/tackles/recoveries) exist 2016-19 and 2025-26;
   the ``defensive_contribution`` points stat is 2025-26 only.
 - 2024-25: assistant-manager ("AM") rows are dropped.
+- ``code`` is FPL's global player id, stable across seasons (element ids are
+  not) — joined from ``players_raw.csv``; it is the cross-season identity key
+  (player names drift between seasons in the source).
 
 Run: ``python -m engine.features.historical_gw``
 """
@@ -85,6 +88,7 @@ CANONICAL = [
     "fixture",
     "kickoff_time",
     "element",
+    "code",
     "player",
     "position",
     "team",
@@ -154,11 +158,15 @@ def load_season_gw(root: Path, season: str) -> pd.DataFrame:
         .str.strip()
     )
 
+    # Cross-season identity: FPL's stable global player code.
+    players_raw = _read_csv(root / season / "players_raw.csv")
+    code = dict(zip(players_raw["id"].astype(int), players_raw["code"].astype(int)))
+    out["code"] = out["element"].map(code).astype("Int64")
+
     # Position: from the file where present, else via players_raw element_type.
     if "position" in df.columns:
         out["position"] = df["position"].map(POSITION_MAP)
     else:
-        players_raw = _read_csv(root / season / "players_raw.csv")
         etype = dict(zip(players_raw["id"].astype(int), players_raw["element_type"].astype(int)))
         out["position"] = out["element"].map(etype).map(ELEMENT_TYPE_TO_POSITION)
 
@@ -237,6 +245,8 @@ def _validate(table: pd.DataFrame) -> None:
             problems.append(f"{col} unmapped for {missing:.1%} of rows")
     if table["kickoff_time"].isna().mean() > 0.01:
         problems.append("kickoff_time missing on >1% of rows")
+    if table["code"].isna().mean() > 0.001:
+        problems.append(f"code unmapped for {table['code'].isna().mean():.2%} of rows")
     if problems:
         raise ValueError("player_gw validation failed: " + "; ".join(problems))
 

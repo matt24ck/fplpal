@@ -1,0 +1,122 @@
+@import "tailwindcss";
+
+/* "Tactics room, match day" — UI_PLAN.md §7. Pitch green is reserved for the
+   board; pitch-deep doubles as the interactive accent. Viz colors are the
+   validated decomposition palette (dataviz six-checks, light surface). */
+/* `static` so vars used only from inline styles (viz palette, diff ramp)
+   are still emitted — Tailwind v4 prunes un-referenced theme vars otherwise. */
+@theme static {
+  --color-paper: #f6f8f6;
+  --color-paper-2: #edf1ed;
+  --color-ink: #17211b;
+  --color-slate: #5c6b63;
+  --color-line: #dce3dd;
+  --color-pitch: #1e6b3c;
+  --color-pitch-light: #25794a;
+  --color-pitch-deep: #14532d;
+  --color-chalk: #ffffff;
+  --color-armband: #d9a62b;
+  --color-card-yellow: #e8b93b;
+  --color-card-red: #c0392b;
+
+  /* xPts decomposition — one category, one color, everywhere */
+  --color-viz-appearance: #98a29b;
+  --color-viz-goals: #1e6b3c;
+  --color-viz-assists: #2e6fb8;
+  --color-viz-dc: #b08514;
+  --color-viz-cs: #0779a8;
+  --color-viz-bonus: #b5487e;
+  --color-viz-saves: #d0700d;
+  --color-viz-other: #c2c9c3;
+  --color-viz-neg: #c0392b;
+
+  /* model difficulty ramp — diverging, luminance-monotonic (easy→hard) */
+  --color-diff-1: #74b78b;
+  --color-diff-2: #4c9a68;
+  --color-diff-3: #6e7a72;
+  --color-diff-4: #a2402f;
+  --color-diff-5: #6b2417;
+}
+
+@theme inline {
+  --font-display: var(--font-archivo), var(--font-instrument), sans-serif;
+  --font-body: var(--font-instrument), system-ui, sans-serif;
+  --font-mono: var(--font-plex), ui-monospace, monospace;
+}
+
+body {
+  background-color: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-body);
+}
+
+/* shirt-printing voice: condensed caps via Archivo's width axis */
+.font-chip {
+  font-family: var(--font-display);
+  font-stretch: 78%;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+.font-hero {
+  font-family: var(--font-display);
+  font-stretch: 122%;
+  font-weight: 800;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-pitch-deep);
+  outline-offset: 2px;
+}
+
+.tabular-nums,
+.font-mono {
+  font-variant-numeric: tabular-nums;
+}
+
+/* chat cross-highlight: chalk pulse ring on the board */
+@keyframes chip-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.9); }
+  100% { box-shadow: 0 0 0 9px rgba(255, 255, 255, 0); }
+}
+.chip-highlight {
+  animation: chip-pulse 1.2s ease-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .chip-highlight {
+    animation: none;
+    box-shadow: 0 0 0 3px var(--color-chalk);
+  }
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* blank fixture cells: hatched */
+.hatched {
+  background-image: repeating-linear-gradient(
+    45deg,
+    transparent,
+    transparent 5px,
+    var(--color-line) 5px,
+    var(--color-line) 6px
+  );
+}
+
+/* data chips in assistant prose: the number is the engine's, tap to see its source */
+.data-chip {
+  font-family: var(--font-plex), ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.92em;
+  background: var(--color-paper-2);
+  border: 1px solid var(--color-line);
+  border-radius: 4px;
+  padding: 0 3px;
+  cursor: pointer;
+}
+.data-chip:hover {
+  border-color: var(--color-pitch-deep);
+}
+
+::-webkit-scrollbar { height: 8px; width: 8px; }
+::-webkit-scrollbar-thumb { background: var(--color-line); border-radius: 4px; }

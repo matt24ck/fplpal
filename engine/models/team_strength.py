@@ -56,11 +56,13 @@ class TeamStrengthModel:
         xg_weight: float = 0.7,  # blend weight on xG where available
         ridge: float = 1.0,
         promoted_percentile: float = 0.15,
+        min_weighted_n: float = 5.0,  # below this decayed weight, use the promoted prior
     ) -> None:
         self.decay_per_day = decay_per_day
         self.xg_weight = xg_weight
         self.ridge = ridge
         self.promoted_percentile = promoted_percentile
+        self.min_weighted_n = min_weighted_n
 
         self.teams_: list[str] = []
         self.mu_: float = 0.0
@@ -166,10 +168,39 @@ class TeamStrengthModel:
     # -- prediction --------------------------------------------------------
 
     def strengths_for(self, team: str) -> tuple[float, float]:
-        """(attack, defence) — falls back to the promoted-team prior for unknown teams."""
-        if team in self.attack_:
+        """(attack, defence) — promoted prior for unknown or data-starved teams.
+
+        A club last seen in the league many years ago has decayed to nearly
+        zero data weight, so its fitted strengths are ridge-dominated (i.e.,
+        league average) — the promoted prior is the honest forecast there too.
+        """
+        if self.weighted_n_.get(team, 0.0) >= self.min_weighted_n:
             return self.attack_[team], self.defence_[team]
         return self.promoted_prior()
+
+    def baseline_lambda(self, team: str) -> float:
+        """Expected goals vs a league-average opponent, venue-averaged.
+
+        The normalizer for fixture scaling: player attacking rates were earned
+        over a home/away mix of typical opponents, so a fixture's difficulty
+        multiplier is lambda_fixture / baseline_lambda(team).
+        """
+        att, _ = self.strengths_for(team)
+        return float(np.exp(self.mu_ + self.home_adv_ / 2.0 + att - self._mean_defence()))
+
+    def league_lambda(self) -> float:
+        """League-average per-team goal expectation (venue-averaged)."""
+        return float(
+            np.exp(self.mu_ + self.home_adv_ / 2.0 + self._mean_attack() - self._mean_defence())
+        )
+
+    def _mean_attack(self) -> float:
+        w = np.array([self.weighted_n_[t] for t in self.teams_])
+        return float(np.average([self.attack_[t] for t in self.teams_], weights=w))
+
+    def _mean_defence(self) -> float:
+        w = np.array([self.weighted_n_[t] for t in self.teams_])
+        return float(np.average([self.defence_[t] for t in self.teams_], weights=w))
 
     def promoted_prior(self) -> tuple[float, float]:
         """Low-percentile strength of established teams — the newly-promoted default."""
