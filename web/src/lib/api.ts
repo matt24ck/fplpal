@@ -16,17 +16,24 @@ const BASE = "/api/engine";
  * dev. Build-time inlined — set in the Vercel project env. */
 const CHAT_BASE = process.env.NEXT_PUBLIC_CHAT_API_URL || BASE;
 
-async function get<T>(path: string): Promise<T> {
-  const res = await fetch(`${BASE}${path}`);
+async function get<T>(path: string, token?: string): Promise<T> {
+  const res = await fetch(`${BASE}${path}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  });
   if (!res.ok) throw new Error(`${path} → ${res.status}`);
   return res.json();
 }
 
-async function post<T>(path: string, body: unknown, token?: string): Promise<T> {
+async function post<T>(
+  path: string,
+  body: unknown,
+  token?: string,
+  method: "POST" | "PUT" = "POST",
+): Promise<T> {
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (token) headers.Authorization = `Bearer ${token}`;
   const res = await fetch(`${BASE}${path}`, {
-    method: "POST",
+    method,
     headers,
     body: JSON.stringify(body),
   });
@@ -56,7 +63,16 @@ export const api = {
     token?: string,
   ) => post<SquadSolution>("/squad/optimize", body, token),
   rateDraft: (players: string[]) => post<SquadSolution>("/squad/rate", { players }),
+  // signed-in only: server-side copy of the draft + team ID (cross-device sync)
+  myState: (token: string) => get<UserState>("/me/state", token),
+  saveMyState: (state: UserState, token: string) =>
+    post<{ ok: boolean }>("/me/state", state, token, "PUT"),
 };
+
+export interface UserState {
+  draft: number[];
+  team_id: string | null;
+}
 
 /** POST /chat and parse the SSE stream into typed events. */
 export async function* streamChat(

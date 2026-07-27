@@ -59,6 +59,10 @@ Accounts are Clerk (Google one-tap). Signed-out visitors get the builder,
 rate-my-draft, Players, Fixtures, and About; chatting with Pal, the Planner,
 and optimizer runs require sign-in — enforced by the API, not just the UI.
 
+Signed-in users' draft + team ID also sync server-side (Postgres via
+`DATABASE_URL` on the API; see DEPLOY.md §1.5). Without `DATABASE_URL` the
+app quietly stays localStorage-only — fine for local dev.
+
 Snapshots land in `data/snapshots/<endpoint>/<utc-timestamp>.json.gz`. Every API pull is archived raw so all downstream work is reproducible. Pipeline output (per-fixture and per-GW projections, ratings) lands in `data/live/` with provenance columns.
 
 For the hourly snapshot cadence the plan calls for, register a scheduled task (adjust the repo path):

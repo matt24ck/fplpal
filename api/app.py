@@ -20,7 +20,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
-from api import tools as t
+from api import db, tools as t
 from api.auth import require_user
 from api.data import get_store
 from api.jobs import jobs_enabled, start_background
@@ -249,6 +249,35 @@ class DraftRequest(BaseModel):
 @app.post("/squad/rate")
 def squad_rate(req: DraftRequest) -> dict:
     return _ok(t.rate_my_draft(req.players))
+
+
+# --- per-user state (cross-device draft/team-id sync) ---------------------
+
+
+def _require_db() -> None:
+    if not db.db_enabled():
+        raise HTTPException(
+            status_code=503,
+            detail="persistence not configured — set DATABASE_URL",
+        )
+
+
+class UserStateBody(BaseModel):
+    draft: list[int] = Field(default=[], max_length=15)
+    team_id: str | None = None
+
+
+@app.get("/me/state")
+def me_state(user: str = Depends(require_user)) -> dict:
+    _require_db()
+    return db.get_state(user)
+
+
+@app.put("/me/state")
+def me_state_put(body: UserStateBody, user: str = Depends(require_user)) -> dict:
+    _require_db()
+    db.put_state(user, body.draft, body.team_id)
+    return {"ok": True}
 
 
 class ChatRequest(BaseModel):

@@ -51,6 +51,7 @@ cache), and `web/node_modules` are gitignored — nothing secret or heavy ships.
    | `CLERK_ISSUER` | the Clerk Frontend API URL (step 0.5) — without it the gated endpoints 503 (fail closed) |
    | `CLERK_AUTHORIZED_PARTIES` | optional: the web origins (same list as `CORS_ORIGINS`) — rejects tokens minted for another app |
    | `CHAT_RATE_LIMIT_PER_HOUR` | optional, default `30` per signed-in user |
+   | `DATABASE_URL` | `${{Postgres.DATABASE_URL}}` — see step 1.5; unset means cross-device draft sync is off and the web app stays local-only |
 4. **Settings → Networking → Generate Domain** — note the public URL.
 5. Deploy. **First boot seeds the empty volume** (one-time, ~10–20 min):
    historical download (~45 MB) → feature builds → first snapshot → first
@@ -64,6 +65,20 @@ cache), and `web/node_modules` are gitignored — nothing secret or heavy ships.
 Service sizing: the API idles tiny, but give it ~2 GB RAM headroom for the
 nightly model refit. Keep it at **one replica / one uvicorn worker** — the
 in-memory store, rate limiter, and scheduler all assume a single process.
+
+## 1.5 Railway — Postgres (user state)
+
+Signed-in users get their draft + team ID stored server-side (cross-device
+sync). One small table, created automatically on first use — no migrations to
+run.
+
+1. In the same Railway project: **Create → Database → Add PostgreSQL**.
+2. On the **engine service** add the variable `DATABASE_URL` with the value
+   `${{Postgres.DATABASE_URL}}` (a Railway variable reference — adjust the
+   service name if yours isn't called `Postgres`). Same-project references use
+   the private network; no public DB exposure needed.
+3. Redeploy the engine. That's it — the `user_state` table appears on the
+   first signed-in visit.
 
 ## 2. Vercel — the web app
 
@@ -93,7 +108,10 @@ in-memory store, rate limiter, and scheduler all assume a single process.
 5. Sign in with Google, then ask the chat something ("How is Haaland
    rated?") — streams, tool cards render (proves Clerk JWT → Railway
    verification + direct SSE + CORS + key).
-6. Next day: status bar's "computed" timestamp has advanced (proves the
+6. Signed in, build a draft, then open the site on another device (or an
+   incognito window) and sign in — the draft is there (proves Postgres +
+   `/me/state` sync).
+7. Next day: status bar's "computed" timestamp has advanced (proves the
    nightly pipeline + reload ran).
 
 ## Notes & gotchas

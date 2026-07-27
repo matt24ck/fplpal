@@ -130,6 +130,14 @@ Create-account/login shipped ahead of pricing, on **Clerk** (chosen for Clerk Bi
 
 Web side: `clerkMiddleware` protects `/chat` and `/planner` (redirecting to in-app `/sign-in`), the masthead gets a sign-in pill / user button, and the rail's composer swaps to a sign-in CTA when signed out. The default (non-dynamic) `ClerkProvider` keeps auth resolution client-side, so every public page kept its static/ISR rendering — confirmed in the build output. Two flow details worth the effort: a prompt typed while signed out is queued in `sessionStorage`, so it survives the OAuth round-trip and sends itself the moment sign-in completes (desktop gets a modal over the open rail; mobile routes through the protected `/chat` and back); and suggestion chips queue the same way. One version gotcha: `@clerk/nextjs` v7 removed `SignedIn`/`SignedOut` (replaced by `Show`) — the client components use `useAuth()` conditionals instead.
 
+Production Clerk landed the same day: DNS CNAMEs on GoDaddy (`clerk.` frontend API, `accounts.`, DKIM pair, `clkmail`), own Google OAuth client (dev instances ride Clerk's shared one; production may not), `pk_live`/`sk_live` on Vercel, `CLERK_ISSUER=https://clerk.fplpal.com` on Railway. Debug war story for the pattern library: "no sign-in button + 401s" looked like a Clerk misconfiguration but `/.well-known/jwks.json` and `/v1/environment` proved the instance healthy — the deployed site was simply a redeploy of the pre-auth commit. Check the build before the config.
+
+## 23. Postgres — the draft follows the account, not the browser
+
+First cross-device complaint arrived on day one (draft built on the phone, gone on the PC) — localStorage was the by-design MVP scope, accounts made its limits visible. Rather than a Clerk-metadata stopgap, Postgres per PLAN §7: a Railway database next to the engine, `psycopg` pool in `api/db.py`, one `user_state` table (Clerk user id → draft jsonb + team_id) created lazily on first use — no migration framework for one table. `GET`/`PUT /me/state` sit behind the same `require_user` dependency as chat; `DATABASE_URL` unset → 503, and the web app quietly stays local-only (same graceful-degradation posture as the engine's seeding state).
+
+Client-side sync lives in the store: on sign-in, pull the server copy and merge — a non-empty server draft wins (it's the cross-device truth), anything only-local survives and is pushed back up; after that, edits debounce-push (800 ms) with a `lastSynced` snapshot guard so the merge itself never echoes a redundant write. Signed-out use is unchanged (localStorage), and every failure path degrades to exactly the pre-Postgres behavior.
+
 ---
 
 *Remaining pre-launch: manual scoring-table verification (flip `verified_against_game`). Then the user's UI fixes and TODO.md §2 in-season work — the transfer planner is unblocked (see TODO). UI backlog per UI_PLAN §12: dark mode, live mode, drag-and-drop, comparison pinning, ownership overlay, chip timeline.*
