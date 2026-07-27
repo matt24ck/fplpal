@@ -37,9 +37,7 @@ def _run_module(module: str) -> None:
     """Run an engine module CLI as a subprocess (their __main__ blocks are the
     documented, idempotent entry points)."""
     log.info("jobs: running %s", module)
-    subprocess.run(
-        [sys.executable, "-m", module], check=True, cwd=REPO_ROOT, timeout=3600
-    )
+    subprocess.run([sys.executable, "-m", module], check=True, cwd=REPO_ROOT, timeout=3600)
 
 
 def snapshot_job() -> None:

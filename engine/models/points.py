@@ -397,6 +397,135 @@ def replay_season(
     return proj, rm
 
 
+def replay_season_frozen(
+    holdout_season: str = "2025-26",
+    horizon: int = 6,
+    verbose: bool = True,
+    decision_gws: list[int] | None = None,
+) -> pd.DataFrame:
+    """Multi-GW replay with projections *frozen at each decision date*.
+
+    For every decision GW g, projects the window g..g+horizon-1 using only
+    information available before GW g — the exact regime the live pipeline
+    runs in (future rows blanked to the cold-start shape, features built one
+    target GW at a time so phantom rows never see each other, team strength
+    as of the decision date). This is what a transfer planner deciding before
+    GW g would actually have seen; ``replay_season``'s frame is fractionally
+    fresher for later window weeks and would flatter a multi-GW backtest.
+
+    Returns per-(decision_gw, gw, code) rows: xpts, price known at the
+    decision date, p_play, n_fixtures. News-blind like the rest of the
+    replay (no historical injury flags).
+    """
+    from engine.features.historical_gw import FLOAT_COLS, INT_COLS, NULLABLE_INT_COLS
+    from engine.features.matches import load_matches
+
+    def log(msg: str) -> None:
+        if verbose:
+            print(msg)
+
+    pg = pd.read_parquet(PLAYER_GW_PATH)
+    seasons = sorted(pg["season"].unique())
+    prev_season = seasons[seasons.index(holdout_season) - 1]
+    hist_pre = pg[pg["season"] < holdout_season]
+    prev = pg[pg["season"] == prev_season]
+    hold = pg[pg["season"] == holdout_season]
+    gws = sorted(hold["gw"].unique())
+
+    log("fitting minutes + event-rate models on pre-holdout seasons...")
+    mdata = build_minutes_dataset(pg)
+    labeled = mdata.dropna(subset=["y_class"])
+    mm = MinutesModel().fit(labeled[labeled["season"] < holdout_season])
+    rm = EventRatesModel().fit(hist_pre)
+
+    # Price known at each decision date: last observed price per (code, gw).
+    prices = (
+        hold.groupby(["gw", "code"], as_index=False)
+        .agg(price=("price", "first"))
+        .pivot(index="code", columns="gw", values="price")
+        .reindex(columns=gws)
+        .ffill(axis=1)
+        .bfill(axis=1)
+    )
+
+    matches = load_matches()
+    hold_matches = matches[matches["season"] == holdout_season]
+
+    def blank(rows: pd.DataFrame, decision_gw: int) -> pd.DataFrame:
+        """Holdout rows reduced to the cold-start shape the models train on."""
+        out = rows.copy()
+        for col in NULLABLE_INT_COLS:
+            out[col] = pd.Series(pd.NA, index=out.index, dtype="Int64")
+        for col in INT_COLS:
+            out[col] = 0
+        for col in FLOAT_COLS:
+            out[col] = pd.Series(pd.NA, index=out.index, dtype="Float64")
+        out["price"] = out["code"].map(prices[decision_gw]).fillna(out["price"]).astype(int)
+        return out
+
+    frames = []
+    for g in decision_gws or gws:
+        window = [w for w in gws if g <= w < g + horizon]
+        blanked = {w: blank(hold[hold["gw"] == w], g) for w in window}
+        real_before = hold[hold["gw"] < g]
+
+        # Event rates: one transform per decision — blanked rows contribute
+        # nothing to the decayed sums, so the whole window batches safely.
+        rates_frame = pd.concat([hist_pre, real_before, *blanked.values()], ignore_index=True)
+        rates = rm.transform(rates_frame)
+        base = rates.loc[(rates["season"] == holdout_season) & (rates["gw"] >= g), ASSEMBLY_COLS]
+
+        # Minutes: shift-based features would read phantom rows as real
+        # matches, so build one target GW (and one fixture-rank, for DGWs)
+        # at a time against only pre-decision history.
+        minutes_parts = []
+        for w in window:
+            bw = blanked[w].sort_values("kickoff_time")
+            rank = bw.groupby("element").cumcount()
+            for r in sorted(rank.unique()):
+                md = build_minutes_dataset(
+                    pd.concat([prev, real_before, bw[rank == r]], ignore_index=True)
+                )
+                rows_m = md[(md["season"] == holdout_season) & (md["gw"] == w)]
+                minutes_parts.append(
+                    rows_m[["season", "fixture", "element"]].join(mm.predict(rows_m))
+                )
+        minutes_df = pd.concat(minutes_parts, ignore_index=True)
+
+        tm = TeamStrengthModel().fit(
+            matches, as_of=hold_matches.loc[hold_matches["gw"] == g, "kickoff_time"].min()
+        )
+        fixtures_df = (
+            hold[hold["gw"].isin(window)][["season", "fixture", "team", "opponent", "was_home"]]
+            .query("was_home")
+            .drop_duplicates("fixture")
+            .rename(columns={"team": "home", "opponent": "away"})
+        )
+        ctx = fixture_context(tm, fixtures_df)
+
+        df = base.merge(minutes_df, on=["season", "fixture", "element"], how="inner").merge(
+            ctx, on=["season", "fixture", "team"], how="inner"
+        )
+        proj = PointsAssembler(load_season(), rm).project(df)
+        per_gw = (
+            proj.groupby(["gw", "code"], as_index=False)
+            .agg(
+                player=("player", "first"),
+                team=("team", "first"),
+                position=("position", "first"),
+                price=("price", "first"),
+                n_fixtures=("fixture", "size"),
+                xpts=("xpts", "sum"),
+                p_play=("p_start", "mean"),
+            )
+            .assign(decision_gw=g)
+        )
+        frames.append(per_gw)
+        log(f"  decision GW{g}: window GW{window[0]}-{window[-1]}, {len(per_gw):,} player-GWs")
+
+    return pd.concat(frames, ignore_index=True)
+
+
 def evaluate_holdout(holdout_season: str = "2025-26") -> None:
     """Replay the holdout point-in-time and score assembled xPts per player-fixture."""
     proj, rm = replay_season(holdout_season)

@@ -6,8 +6,10 @@ them. Each payload carries ``provenance`` (snapshot + computation timestamps)
 for the "computed from data through X" badge. The same functions back the
 REST endpoints, so UI tables and chat answers can never disagree.
 
-Transfer planning and chip advice are in-season tools (PLAN §5) and appear
-here only as honest not-yet-available stubs the model can cite.
+The full optimizer surface is live: ``plan_transfers`` solves the
+multi-period transfer MILP and ``chip_advice`` prices every chip week in
+the projection window on top of the plan's trajectory (pre-season both run
+as previews on the user's draft, honestly labeled).
 """
 
 from __future__ import annotations
@@ -18,7 +20,9 @@ import pandas as pd
 from api.data import LiveStore, get_store
 from engine.models.points import COMPONENTS
 from engine.models.ratings import SUBSCORES
+from engine.optimize.chips import CHIPS, advise_chips
 from engine.optimize.squad import optimize_lineup, optimize_squad
+from engine.optimize.transfers import optimize_transfers
 
 COMPONENT_LABELS = {
     "pts_appearance": "appearance",
@@ -328,22 +332,208 @@ def _solution_payload(store: LiveStore, sol) -> dict:
     }
 
 
-def transfer_advice() -> dict:
-    """Multi-GW transfer planning — not available until the season starts."""
-    return {
-        "not_available": (
-            "the transfer planner ships in-season (transfers are unlimited before "
-            "GW1, so it has nothing to optimize yet); before the season, use "
-            "build_squad or rate_my_draft instead"
+def _resolve_squad(store: LiveStore, players: list[str]) -> tuple[pd.DataFrame | None, dict | None]:
+    """Resolve 15 names to rows; error payload if names or shape are off."""
+    rows, errors = [], []
+    for q in players:
+        row, err = _resolve(store, q)
+        (errors.append(err) if err else rows.append(row))
+    if errors:
+        return None, {"errors": errors}
+    if len(rows) != 15:
+        return None, {"error": f"a squad needs exactly 15 players, got {len(rows)}"}
+    squad_df = pd.DataFrame(rows)
+    counts = squad_df["position"].value_counts().to_dict()
+    if counts != {"DEF": 5, "MID": 5, "GKP": 2, "FWD": 3}:
+        return None, {"error": f"invalid squad shape {counts}, need 2 GKP / 5 DEF / 5 MID / 3 FWD"}
+    return squad_df, None
+
+
+def _gw_projections(store: LiveStore, horizon: int | None = None) -> pd.DataFrame:
+    proj = store.per_gw.merge(store.players[["code", "price", "p_play"]], on="code", how="left")
+    proj = proj[["code", "player", "team", "position", "price", "gw", "xpts", "p_play"]]
+    if horizon:
+        keep = sorted(proj["gw"].unique())[:horizon]
+        proj = proj[proj["gw"].isin(keep)]
+    return proj
+
+
+def plan_transfers(
+    players: list[str],
+    bank: float = 0.0,
+    free_transfers: int = 1,
+    horizon: int | None = None,
+    alternatives: int = 1,
+) -> dict:
+    """Multi-GW transfer plan (MILP): which moves, when, hits vs. banking FTs.
+
+    ``players``: the current 15. ``bank`` in £m. Sell prices are current
+    prices (no purchase-price history until real team import lands).
+    """
+    store = get_store()
+    squad_df, err = _resolve_squad(store, players)
+    if err:
+        return err
+
+    proj = _gw_projections(store, horizon)
+    own = {int(r.code): int(r.price) for r in squad_df.itertuples()}
+
+    plan = optimize_transfers(
+        proj, own, bank=int(round(bank * 10)), free_transfers=free_transfers, time_limit=10.0
+    )
+    out = _plan_payload(plan)
+
+    alts = []
+    week1_moved = bool(plan.steps[0].moves)
+    variants: list[tuple[str, dict]] = []
+    if alternatives >= 1:
+        if week1_moved:
+            variants.append(("hold this week instead", {"hold_first": True}))
+            if alternatives >= 2:
+                variants.append(
+                    (
+                        "a different move this week",
+                        {
+                            "forbid_first_gw": [
+                                (
+                                    frozenset(m.in_code for m in plan.steps[0].moves),
+                                    frozenset(m.out_code for m in plan.steps[0].moves),
+                                )
+                            ]
+                        },
+                    )
+                )
+        else:
+            variants.append(("best move now instead of banking", {"force_move": True}))
+    for label, kwargs in variants:
+        try:
+            alt = optimize_transfers(
+                proj, own, bank=int(round(bank * 10)), free_transfers=free_transfers,
+                time_limit=8.0, **kwargs,
+            )  # fmt: skip
+        except RuntimeError:
+            continue
+        alts.append(
+            {
+                "label": label,
+                "this_week": _moves_payload(alt.steps[0]),
+                "expected_pts_over_horizon": _r(alt.xpts_total, 1),
+                "delta_vs_plan": _r(alt.xpts_total - plan.xpts_total, 1),
+            }
         )
+    if alts:
+        out["alternatives"] = alts
+
+    if store.provenance["gw_window"][0] == 1:
+        out["note"] = (
+            "pre-season: transfers are unlimited until the GW1 deadline, so this is "
+            "a preview that treats the draft as locked from GW1"
+        )
+    out["provenance"] = store.provenance
+    return out
+
+
+def _moves_payload(step) -> dict:
+    if not step.moves:
+        return {"action": "hold", "moves": []}
+    return {
+        "action": "transfer",
+        "moves": [
+            {
+                "out": m.out_player,
+                "out_sell_price": f"£{m.price_out / 10:.1f}m",
+                "in": m.in_player,
+                "in_price": f"£{m.price_in / 10:.1f}m",
+            }
+            for m in step.moves
+        ],
+        "hit_cost": -4 * step.hits if step.hits else 0,
     }
 
 
-def chip_advice() -> dict:
-    """Chip timing advice — not available until the season starts."""
-    return {
-        "not_available": (
-            "the chip advisor ships in-season (~GW4, ahead of the first realistic "
-            "chip windows); chips cannot be played before GW1"
+def _plan_payload(plan) -> dict:
+    steps = []
+    for s in plan.steps:
+        steps.append(
+            {
+                "gw": s.gw,
+                **_moves_payload(s),
+                "free_transfers_after": s.ft_after,
+                "bank_after": f"£{s.bank_after / 10:.1f}m",
+                "xi_xpts": _r(s.xpts_xi, 1),
+            }
         )
+    return {
+        "horizon_gws": [plan.steps[0].gw, plan.steps[-1].gw],
+        "expected_pts_with_plan": _r(plan.xpts_total, 1),
+        "expected_pts_holding": _r(plan.baseline_xpts, 1),
+        "expected_gain": _r(plan.gain, 1),
+        "this_week": _moves_payload(plan.steps[0]),
+        "steps": steps,
     }
+
+
+CHIP_LABELS = {
+    "wildcard": "Wildcard",
+    "freehit": "Free Hit",
+    "bboost": "Bench Boost",
+    "triple_captain": "Triple Captain",
+}
+
+
+def chip_advice(
+    players: list[str],
+    bank: float = 0.0,
+    free_transfers: int = 1,
+    chips: list[str] | None = None,
+) -> dict:
+    """Per-chip expected value across the projection window, on top of the
+    transfer plan's trajectory. ``chips`` limits to the ones still in hand
+    (default: all four)."""
+    store = get_store()
+    squad_df, err = _resolve_squad(store, players)
+    if err:
+        return err
+    wanted = tuple(chips) if chips else CHIPS
+    unknown = [c for c in wanted if c not in CHIPS]
+    if unknown:
+        return {"error": f"unknown chips {unknown}; valid: {list(CHIPS)}"}
+
+    proj = _gw_projections(store)
+    own = {int(r.code): int(r.price) for r in squad_df.itertuples()}
+    advice = advise_chips(
+        proj, own, bank=int(round(bank * 10)), free_transfers=free_transfers,
+        chips=wanted, time_limit=8.0,
+    )  # fmt: skip
+
+    gws = sorted(proj["gw"].unique())
+    out: dict = {"horizon_gws": [int(gws[0]), int(gws[-1])], "chips": {}}
+    for chip, adv in advice.items():
+        best = adv.best
+        out["chips"][chip] = {
+            "label": CHIP_LABELS[chip],
+            "best_gw": best.gw if best else None,
+            "expected_gain": _r(best.ev, 1) if best else None,
+            "detail": best.detail if best else None,
+            "assessment": _chip_assessment(chip, best.ev if best else 0.0),
+            "weeks": [{"gw": w.gw, "ev": _r(w.ev, 1)} for w in adv.weeks],
+        }
+    out["note"] = (
+        "expected gains cover only the visible projection window "
+        f"(GW{gws[0]}-{gws[-1]}); stronger chip weeks (blanks/doubles) may exist "
+        "beyond it, so a low number means 'no standout week visible', not 'never play it'"
+    )
+    if store.provenance["gw_window"][0] == 1:
+        out["note"] += "; chips cannot be played before GW1"
+    out["provenance"] = store.provenance
+    return out
+
+
+def _chip_assessment(chip: str, ev: float) -> str:
+    """Engine-side verdict bands so the chat layer never freelances one."""
+    strong = {"triple_captain": 8.0, "bboost": 10.0, "freehit": 8.0, "wildcard": 12.0}
+    if ev >= strong[chip]:
+        return "strong week visible — worth considering now"
+    if ev >= 0.6 * strong[chip]:
+        return "moderate value — holding is defensible"
+    return "no standout week in the visible window — hold"

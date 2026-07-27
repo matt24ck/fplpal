@@ -23,7 +23,7 @@ export const TOOL_LABELS: Record<string, string> = {
   explain_rating: "Rating breakdown",
   build_squad: "Optimal squad",
   rate_my_draft: "Draft verdict",
-  transfer_advice: "Transfer planner",
+  plan_transfers: "Transfer plan",
   chip_advice: "Chip advisor",
 };
 
@@ -36,8 +36,8 @@ export const TOOL_RUNNING: Record<string, string> = {
   explain_rating: "breaking down the rating",
   build_squad: "solving the squad (MILP)",
   rate_my_draft: "rating your draft",
-  transfer_advice: "checking availability",
-  chip_advice: "checking availability",
+  plan_transfers: "solving the transfer plan (MILP)",
+  chip_advice: "pricing chip weeks",
 };
 
 type ToolPart = Extract<ChatPart, { type: "tool" }>;
@@ -131,9 +131,98 @@ function CardBody({ name, result }: { name: string; result: Obj }) {
     case "build_squad":
     case "rate_my_draft":
       return <SolutionCard r={result} />;
+    case "plan_transfers":
+      return <TransferPlanCard r={result} />;
+    case "chip_advice":
+      return <ChipAdviceCard r={result} />;
     default:
       return <Generic value={result} />;
   }
+}
+
+function ChipAdviceCard({ r }: { r: Obj }) {
+  const chips = (r.chips as Record<string, Obj> | undefined) ?? {};
+  return (
+    <div className="text-sm">
+      <ul className="space-y-1">
+        {Object.entries(chips).map(([key, c]) => (
+          <li key={key} className="flex flex-wrap items-baseline gap-x-2">
+            <span className="font-medium">{String(c.label)}</span>
+            <span className="font-mono text-xs">
+              best GW{String(c.best_gw)} +{pts(c.expected_gain as number)}
+            </span>
+            <span className="text-slate text-xs">{String(c.assessment)}</span>
+          </li>
+        ))}
+      </ul>
+      {typeof r.note === "string" && (
+        <p className="text-slate mt-1.5 text-[11px] leading-snug">{r.note}</p>
+      )}
+    </div>
+  );
+}
+
+function TransferPlanCard({ r }: { r: Obj }) {
+  const steps = (r.steps as Obj[] | undefined) ?? [];
+  const week = r.this_week as Obj | undefined;
+  const weekMoves = (week?.moves as Obj[] | undefined) ?? [];
+  const gws = r.horizon_gws as [number, number] | undefined;
+  return (
+    <div className="text-sm">
+      <p>
+        {week?.action === "hold" ? (
+          <>
+            <strong>Hold</strong> — bank the free transfer.
+          </>
+        ) : (
+          <>
+            <strong>This week:</strong>{" "}
+            {weekMoves.map((m, i) => (
+              <span key={i}>
+                {i > 0 && "; "}
+                <span className="text-slate">{String(m.out)}</span> →{" "}
+                <strong>{String(m.in)}</strong>
+              </span>
+            ))}
+            {week?.hit_cost ? (
+              <span className="text-card-red ml-1 font-mono text-xs">
+                {String(week.hit_cost)} hit
+              </span>
+            ) : null}
+          </>
+        )}
+      </p>
+      <p className="text-slate mt-1 font-mono text-xs">
+        {gws ? `GW${gws[0]}–${gws[1]}: ` : ""}
+        {pts(r.expected_pts_with_plan as number)} with the plan vs{" "}
+        {pts(r.expected_pts_holding as number)} holding (+
+        {pts(r.expected_gain as number)})
+      </p>
+      <ul className="mt-1.5 space-y-0.5 text-xs">
+        {steps.map((s) => {
+          const moves = (s.moves as Obj[] | undefined) ?? [];
+          return (
+            <li key={String(s.gw)} className="flex gap-2">
+              <span className="text-slate w-10 shrink-0 font-mono">GW{String(s.gw)}</span>
+              <span className="min-w-0">
+                {s.action === "hold"
+                  ? "hold"
+                  : moves
+                      .map((m) => `${String(m.out)} → ${String(m.in)}`)
+                      .join("; ")}
+                {s.hit_cost ? (
+                  <span className="text-card-red ml-1 font-mono">{String(s.hit_cost)}</span>
+                ) : null}
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+      {typeof r.note === "string" && (
+        <p className="text-slate mt-1.5 text-[11px] leading-snug">{r.note}</p>
+      )}
+    </div>
+  );
 }
 
 function PlayerCard({ r }: { r: Obj }) {

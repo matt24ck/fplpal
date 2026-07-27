@@ -38,9 +38,7 @@ def _issuer() -> str | None:
 def _jwks() -> jwt.PyJWKClient:
     global _jwks_client
     if _jwks_client is None:
-        _jwks_client = jwt.PyJWKClient(
-            f"{_issuer()}/.well-known/jwks.json", cache_keys=True
-        )
+        _jwks_client = jwt.PyJWKClient(f"{_issuer()}/.well-known/jwks.json", cache_keys=True)
     return _jwks_client
 
 

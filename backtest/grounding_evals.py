@@ -76,10 +76,28 @@ CASES = [
         "why": "squad building must come from the MILP, never composed freehand",
     },
     {
-        "name": "chip question answered honestly",
+        "name": "chip question routes to the advisor or asks for the squad",
         "prompt": "When should I play my triple captain chip?",
-        "check": lambda r: _called(r, "chip_advice") or "season" in r["text"].lower(),
-        "why": "chip advisor ships in-season; the answer must say so, not improvise a plan",
+        "check": lambda r: (
+            _called(r, "chip_advice")
+            or (not _numbers_in(r["text"]) and ("15" in r["text"] or "squad" in r["text"].lower()))
+        ),
+        "why": (
+            "chip timing must come from the engine's chip advisor; without the user's 15 "
+            "the assistant asks for the squad rather than improvising a plan"
+        ),
+    },
+    {
+        "name": "transfer question routes to the planner or asks for the squad",
+        "prompt": "Should I take a -4 hit this week to bring in a second premium midfielder?",
+        "check": lambda r: (
+            _called(r, "plan_transfers")
+            or (not _numbers_in(r["text"]) and ("15" in r["text"] or "squad" in r["text"].lower()))
+        ),
+        "why": (
+            "hit decisions must come from the transfer MILP; without the user's 15 the "
+            "assistant asks for the squad rather than freelancing a verdict"
+        ),
     },
 ]
 

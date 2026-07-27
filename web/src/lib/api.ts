@@ -1,11 +1,13 @@
 import type {
   ChatEvent,
+  ChipAdviceResponse,
   ExplorerData,
   MatrixData,
   Meta,
   ProjectionsResponse,
   RatingExplain,
   SquadSolution,
+  TransferPlan,
 } from "./types";
 
 /** Proxied to the FastAPI engine via next.config.ts rewrites. */
@@ -63,6 +65,20 @@ export const api = {
     token?: string,
   ) => post<SquadSolution>("/squad/optimize", body, token),
   rateDraft: (players: string[]) => post<SquadSolution>("/squad/rate", { players }),
+  planTransfers: (
+    body: {
+      players: string[];
+      bank?: number;
+      free_transfers?: number;
+      horizon?: number;
+      alternatives?: number;
+    },
+    token?: string,
+  ) => post<TransferPlan>("/transfers/plan", body, token),
+  adviseChips: (
+    body: { players: string[]; bank?: number; free_transfers?: number; chips?: string[] },
+    token?: string,
+  ) => post<ChipAdviceResponse>("/chips/advise", body, token),
   // signed-in only: server-side copy of the draft + team ID (cross-device sync)
   myState: (token: string) => get<UserState>("/me/state", token),
   saveMyState: (state: UserState, token: string) =>

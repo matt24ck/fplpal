@@ -147,17 +147,50 @@ def rate_my_draft(players: list[str]) -> str:
 
 
 @beta_tool
-def transfer_advice() -> str:
-    """Transfer planning — call this if the user asks about transfers so you
-    can report its current availability honestly."""
-    return _json(t.transfer_advice())
+def plan_transfers(
+    players: list[str],
+    bank: float = 0.0,
+    free_transfers: int = 1,
+    horizon: int | None = None,
+) -> str:
+    """Multi-gameweek transfer plan solved by the engine's MILP: which moves
+    to make and when, whether a −4 hit pays for itself, and when to bank a
+    free transfer. Call this when the user asks about transfers, hits, or
+    planning ahead — it needs their current 15 players (ask for them, or use
+    the draft if they've shared it). Before GW1 it runs as a preview that
+    treats the draft as locked from GW1.
+
+    Args:
+        players: The user's current 15 players (2 GKP, 5 DEF, 5 MID, 3 FWD).
+        bank: Money in the bank in millions, e.g. 0.5.
+        free_transfers: Free transfers available now (1-5).
+        horizon: How many gameweeks to plan over (default: the full projection window).
+    """
+    return _json(t.plan_transfers(players, bank, free_transfers, horizon))
 
 
 @beta_tool
-def chip_advice() -> str:
-    """Chip (wildcard/free hit/bench boost/triple captain) advice — call this
-    if the user asks about chips so you can report availability honestly."""
-    return _json(t.chip_advice())
+def chip_advice(
+    players: list[str],
+    bank: float = 0.0,
+    free_transfers: int = 1,
+    chips: list[str] | None = None,
+) -> str:
+    """Chip advice (wildcard / free hit / bench boost / triple captain):
+    engine-computed expected gain for playing each chip in every visible
+    gameweek, on top of the optimal transfer plan. Call this when the user
+    asks when to play a chip — it needs their current 15 (ask if you don't
+    have them). Report the engine's assessment honestly, including "no
+    standout week visible" — the window only covers the next few GWs.
+
+    Args:
+        players: The user's current 15 players (2 GKP, 5 DEF, 5 MID, 3 FWD).
+        bank: Money in the bank in millions.
+        free_transfers: Free transfers available now (1-5).
+        chips: Which chips they still hold, from: wildcard, freehit, bboost,
+            triple_captain (omit for all four).
+    """
+    return _json(t.chip_advice(players, bank, free_transfers, chips))
 
 
 TOOLS = [
@@ -169,7 +202,7 @@ TOOLS = [
     explain_rating,
     build_squad,
     rate_my_draft,
-    transfer_advice,
+    plan_transfers,
     chip_advice,
 ]
 

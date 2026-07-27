@@ -39,9 +39,7 @@ def _get_pool() -> ConnectionPool:
         if _pool is None:
             # sync endpoints run in FastAPI's threadpool — a small sync pool
             # fits the single-worker deployment
-            pool = ConnectionPool(
-                os.environ["DATABASE_URL"], min_size=0, max_size=4, open=True
-            )
+            pool = ConnectionPool(os.environ["DATABASE_URL"], min_size=0, max_size=4, open=True)
             with pool.connection() as conn:
                 conn.execute(_SCHEMA)
             _pool = pool

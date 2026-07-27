@@ -123,6 +123,62 @@ export interface RatingExplain {
   provenance: Provenance;
 }
 
+/** Multi-GW transfer plan (POST /transfers/plan). */
+export interface TransferMove {
+  out: string;
+  out_sell_price: string;
+  in: string;
+  in_price: string;
+}
+
+export interface PlanWeek {
+  gw: number;
+  action: "hold" | "transfer";
+  moves: TransferMove[];
+  hit_cost?: number;
+  free_transfers_after: number;
+  bank_after: string;
+  xi_xpts: number;
+}
+
+export interface TransferPlan {
+  horizon_gws: [number, number];
+  expected_pts_with_plan: number;
+  expected_pts_holding: number;
+  expected_gain: number;
+  this_week: { action: "hold" | "transfer"; moves: TransferMove[]; hit_cost?: number };
+  steps: PlanWeek[];
+  alternatives?: {
+    label: string;
+    this_week: { action: "hold" | "transfer"; moves: TransferMove[]; hit_cost?: number };
+    expected_pts_over_horizon: number;
+    delta_vs_plan: number;
+  }[];
+  note?: string;
+  provenance: Provenance;
+  error?: string;
+  errors?: unknown[];
+}
+
+/** Chip advisor (POST /chips/advise). */
+export interface ChipAdviceEntry {
+  label: string;
+  best_gw: number | null;
+  expected_gain: number | null;
+  detail: string | null;
+  assessment: string;
+  weeks: { gw: number; ev: number }[];
+}
+
+export interface ChipAdviceResponse {
+  horizon_gws: [number, number];
+  chips: Record<string, ChipAdviceEntry>;
+  note?: string;
+  provenance: Provenance;
+  error?: string;
+  errors?: unknown[];
+}
+
 /** Chat stream events (api/chat.py SSE). */
 export type ChatEvent =
   | { event: "text"; data: { delta: string } }

@@ -9,8 +9,9 @@ const CHIP_LABELS: Record<string, string> = {
   triple_captain: "Triple Captain",
 };
 
-/** Chip status (UI_PLAN §5): state only until the advisor ships — no advice
- * is ever shown that the engine didn't compute. */
+/** Chip status (UI_PLAN §5): availability state; timing advice lives on the
+ * Planner, where the engine prices every chip week on top of the transfer
+ * plan — no advice is ever shown that the engine didn't compute. */
 export function ChipsCard() {
   const { data } = useMeta();
   if (!data) return null;
@@ -34,8 +35,8 @@ export function ChipsCard() {
       </ul>
       <p className="text-slate mt-2.5 text-[11px] leading-snug">
         One of each per half-season; the first half ends at GW
-        {data.first_half_deadline_gw}. Timing advice ships in-season (~GW4), computed
-        by the engine.
+        {data.first_half_deadline_gw}. The engine prices every chip week on the
+        Planner — expected gain per gameweek, on top of your transfer plan.
       </p>
     </div>
   );

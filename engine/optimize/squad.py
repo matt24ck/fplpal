@@ -123,10 +123,15 @@ def optimize_squad(
     for position, count in sq_rules.positions.items():
         prob += pulp.lpSum(sq[i] for i in range(n) if pos[i] == position) == count
     prob += pulp.lpSum(sq[i] * price[i] for i in range(n)) <= budget
-    for club in pd.unique(p["team"]):
-        prob += (
-            pulp.lpSum(sq[i] for i in range(n) if p.at[i, "team"] == club) <= sq_rules.max_per_club
-        )
+    # The club limit is a transaction rule, not a lineup rule: a mid-season
+    # club move can legally leave an owned 15 with 4 from one club, so a
+    # fixed squad must not be constrained by it.
+    if not fix_squad:
+        for club in pd.unique(p["team"]):
+            prob += (
+                pulp.lpSum(sq[i] for i in range(n) if p.at[i, "team"] == club)
+                <= sq_rules.max_per_club
+            )
 
     prob += pulp.lpSum(xi[i] for i in range(n)) == 11
     for position, (lo, hi) in sq_rules.formation.items():
@@ -177,8 +182,12 @@ def optimize_squad(
 
 
 def optimize_lineup(squad15: pd.DataFrame, rules: SeasonRules | None = None) -> SquadSolution:
-    """Best XI, formation, captain/vice, and bench order from a fixed 15."""
-    return optimize_squad(squad15, rules=rules, budget=None, fix_squad=True)
+    """Best XI, formation, captain/vice, and bench order from a fixed 15.
+
+    No budget constraint: the 15 are fixed, and an owned squad's market value
+    legitimately drifts past the initial budget as prices rise.
+    """
+    return optimize_squad(squad15, rules=rules, budget=10**9, fix_squad=True)
 
 
 def _assign_bench_order(out: pd.DataFrame) -> pd.DataFrame:

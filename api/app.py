@@ -49,6 +49,8 @@ async def _data_not_ready(_request: Request, _exc: FileNotFoundError):
         status_code=503,
         content={"detail": "engine data not ready — seeding or refresh in progress"},
     )
+
+
 app.add_middleware(
     CORSMiddleware,
     # deployed: set CORS_ORIGINS to the web app's origin(s), comma-separated —
@@ -125,9 +127,7 @@ def explorer() -> dict:
     sub-scores, per-GW xPts, plus each team's fixture ticker."""
     store = get_store()
     sub_cols = [c for c in store.ratings.columns if c.startswith("score_")]
-    pool = store.players.merge(
-        store.ratings[["code", "rating", *sub_cols]], on="code", how="left"
-    )
+    pool = store.players.merge(store.ratings[["code", "rating", *sub_cols]], on="code", how="left")
     gw_xpts = {
         code: {int(r.gw): round(float(r.xpts), 2) for r in grp.itertuples()}
         for code, grp in store.per_gw.groupby("code")
@@ -135,7 +135,9 @@ def explorer() -> dict:
     players = []
     for r in pool.itertuples():
         subs = {
-            name: None if np.isnan(getattr(r, f"score_{name}")) else round(getattr(r, f"score_{name}"))
+            name: None
+            if np.isnan(getattr(r, f"score_{name}"))
+            else round(getattr(r, f"score_{name}"))
             for name in SUBSCORES.get(str(r.position), [])
         }
         players.append(
@@ -189,9 +191,7 @@ def fixtures_matrix() -> dict:
         )
     return {
         "gws": gws,
-        "teams": [
-            {"team": t, "cells": [cells[t][g] for g in gws]} for t in store.teams
-        ],
+        "teams": [{"team": t, "cells": [cells[t][g] for g in gws]} for t in store.teams],
         "provenance": store.provenance,
     }
 
@@ -249,6 +249,35 @@ class DraftRequest(BaseModel):
 @app.post("/squad/rate")
 def squad_rate(req: DraftRequest) -> dict:
     return _ok(t.rate_my_draft(req.players))
+
+
+class TransferPlanRequest(BaseModel):
+    players: list[str] = Field(min_length=15, max_length=15)
+    bank: float = Field(default=0.0, ge=0.0)
+    free_transfers: int = Field(default=1, ge=0, le=5)
+    horizon: int | None = Field(default=None, ge=2, le=8)
+    alternatives: int = Field(default=1, ge=0, le=2)
+
+
+# On-demand MILP over the projection window — the heaviest solve we expose,
+# so it sits behind auth like the squad optimizer.
+@app.post("/transfers/plan")
+def transfers_plan(req: TransferPlanRequest, user: str = Depends(require_user)) -> dict:
+    return _ok(
+        t.plan_transfers(req.players, req.bank, req.free_transfers, req.horizon, req.alternatives)
+    )
+
+
+class ChipAdviceRequest(BaseModel):
+    players: list[str] = Field(min_length=15, max_length=15)
+    bank: float = Field(default=0.0, ge=0.0)
+    free_transfers: int = Field(default=1, ge=0, le=5)
+    chips: list[str] | None = None
+
+
+@app.post("/chips/advise")
+def chips_advise(req: ChipAdviceRequest, user: str = Depends(require_user)) -> dict:
+    return _ok(t.chip_advice(req.players, req.bank, req.free_transfers, req.chips))
 
 
 # --- per-user state (cross-device draft/team-id sync) ---------------------
