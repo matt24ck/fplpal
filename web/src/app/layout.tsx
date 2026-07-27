@@ -3,6 +3,7 @@ import { Archivo, IBM_Plex_Mono, Instrument_Sans } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/lib/providers";
 import { Shell } from "@/components/Shell";
+import { SITE_NAME, SITE_URL } from "@/lib/seo";
 
 const archivo = Archivo({
   subsets: ["latin"],
@@ -20,7 +21,12 @@ const plexMono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "FPL Pal — your pal who does the maths",
+  metadataBase: new URL(SITE_URL),
+  applicationName: SITE_NAME,
+  title: {
+    default: "FPL Pal — your pal who does the maths",
+    template: `%s · ${SITE_NAME}`,
+  },
   description:
     "FPL projections, ratings and optimal squads computed by a statistical engine — explained by Pal, an AI assistant that never invents a number.",
 };

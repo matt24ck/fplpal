@@ -22,6 +22,13 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { chatOpen, setChatOpen } = useApp();
   const onChatPage = pathname === "/chat";
+  /* The rail mounts client-side only. During streaming SSR the page chunk
+   * arrives late, so Shell siblings render first — if the rail subscribed to
+   * ["explorer"] then, the page's HydrationBoundary would find the query
+   * already in the cache and defer hydration to a client effect, stripping
+   * the data out of the prerendered HTML (see lib/engine-server.ts). */
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
   return (
     <div className="flex min-h-dvh flex-col">
@@ -88,7 +95,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
         <main className="min-w-0 flex-1 pb-24 lg:pb-10">{children}</main>
 
         {/* Pal rail — desktop */}
-        {!onChatPage && chatOpen && (
+        {mounted && !onChatPage && chatOpen && (
           <aside className="border-line sticky top-14 hidden h-[calc(100dvh-3.5rem)] w-[380px] shrink-0 border-l xl:w-[420px] lg:flex lg:flex-col">
             <ChatRail onCollapse={() => setChatOpen(false)} />
           </aside>
@@ -157,9 +164,10 @@ export function Shell({ children }: { children: React.ReactNode }) {
   );
 }
 
-/** GW deadline, always in view — the one clock every manager plays against. */
+/** GW deadline, always in view — the one clock every manager plays against.
+ * Split so useMeta only runs after mount: it renders null pre-mount anyway,
+ * and subscribing during SSR would block ["meta"] hydration (see Shell). */
 function DeadlineChip() {
-  const { data } = useMeta();
   const [now, setNow] = useState<Date | null>(null);
   useEffect(() => {
     setNow(new Date());
@@ -167,8 +175,14 @@ function DeadlineChip() {
     return () => clearInterval(t);
   }, []);
 
+  if (!now) return null;
+  return <DeadlineChipInner now={now} />;
+}
+
+function DeadlineChipInner({ now }: { now: Date }) {
+  const { data } = useMeta();
   const dl = data?.next_deadline;
-  if (!dl || !now) return null;
+  if (!dl) return null;
   const left = countdown(dl.deadline_time, now);
   const urgent = new Date(dl.deadline_time).getTime() - now.getTime() < 86_400_000;
 

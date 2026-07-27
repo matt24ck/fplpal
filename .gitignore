@@ -23,3 +23,6 @@ web/out/
 # Env & editor
 .env
 .env.*
+
+# Scratch experiments (Scout comparison etc.)
+test/

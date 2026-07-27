@@ -3,9 +3,11 @@
 /** Player drawer: rating dial + sub-score bars, per-GW xPts decomposition,
  * fixture run. Opens over any view; Esc or backdrop closes. */
 
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
+import Link from "next/link";
 import { usePlayerProjection, useExplorer } from "@/lib/hooks";
 import { SUBSCORES, price, pts } from "@/lib/format";
+import { assignSlugs } from "@/lib/slug";
 import type { ExplorerPlayer } from "@/lib/types";
 import { Shirt } from "./Shirt";
 import { DecompositionChart, FixtureTickerStrip, RatingDial, SubScoreBars } from "./viz";
@@ -29,6 +31,12 @@ export function PlayerDrawer({
     return () => window.removeEventListener("keydown", onKey);
   }, [player, onClose]);
 
+  const profileHref = useMemo(() => {
+    if (!player || !explorer) return null;
+    const slug = assignSlugs(explorer.players).get(player.code);
+    return slug ? `/players/${slug}` : null;
+  }, [explorer, player]);
+
   if (!player) return null;
   const fixtures = explorer?.fixtures[player.team] ?? [];
   const perGw = proj.data?.projections[0]?.per_gw;
@@ -50,6 +58,11 @@ export function PlayerDrawer({
                 {player.team} · {player.position} ·{" "}
                 <span className="font-mono">{price(player.price)}</span>
               </p>
+              {profileHref && (
+                <Link href={profileHref} className="text-royal mt-1 inline-block text-xs font-medium">
+                  Full profile page →
+                </Link>
+              )}
             </div>
           </div>
           <button
