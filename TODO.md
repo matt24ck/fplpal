@@ -40,7 +40,7 @@ What's left to build, in priority order. Companion to [PLAN.md](PLAN.md) (the de
 
 ## 5. Platform & quality (as it scales)
 
-- [ ] **Accounts / persistence** — the draft and team ID live in localStorage by design (PLAN default: team-ID-only MVP). Revisit post-launch; brings Postgres per PLAN §7 (current parquet + in-memory store is right at today's scale).
+- [ ] **Accounts / persistence** — accounts shipped 27 Jul 2026 (BUILDLOG §22): Clerk with Google one-tap; chat/planner/optimize are signed-in-only, enforced by FastAPI verifying session JWTs. Remaining: **pricing/billing** (Clerk Billing — the reason Clerk was chosen), and server-side persistence of the draft + team ID, which still live in localStorage (brings Postgres per PLAN §7; current parquet + in-memory store is right at today's scale).
 - [ ] **Haiku router for chat** — A/B `claude-haiku-4-5` on single-tool lookups behind the grounding evals; keep Sonnet for multi-step advice (PLAN §6 cost path).
 - [ ] **Unit tests** — the engine's module-level holdout evals are strong but there's no fast pytest suite for pure functions (config, shrinkage math, points assembly identities, API tools' name resolution).
 - [ ] **Error tracking / uptime monitoring** on API + web once deployed.

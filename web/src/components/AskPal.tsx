@@ -3,6 +3,7 @@
 /** One way to talk to Pal from anywhere: queue the prompt for the rail on
  * desktop, carry it to the chat screen on mobile. */
 
+import { useAuth, useClerk } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useApp } from "@/lib/store";
@@ -10,10 +11,21 @@ import { SparkIcon } from "./Shell";
 
 export function useAskPal() {
   const { sendPrompt } = useApp();
+  const { isSignedIn } = useAuth();
+  const clerk = useClerk();
   const router = useRouter();
   return (prompt: string) => {
+    // queue first — the prompt sends itself once signed in (survives OAuth)
     sendPrompt(prompt);
-    if (!window.matchMedia("(min-width: 1024px)").matches) router.push("/chat");
+    const desktop = window.matchMedia("(min-width: 1024px)").matches;
+    if (!isSignedIn) {
+      // desktop: modal over the open rail; mobile: /chat redirects to sign-in
+      // and back, where the queued prompt fires
+      if (desktop) clerk.openSignIn();
+      else router.push("/chat");
+      return;
+    }
+    if (!desktop) router.push("/chat");
   };
 }
 

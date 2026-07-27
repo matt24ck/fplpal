@@ -3,6 +3,7 @@
 /** The conversation surface: streaming prose with data chips, tool cards
  * inline in call order, contextual suggested prompts, honest error states. */
 
+import { SignInButton, useAuth, useClerk } from "@clerk/nextjs";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { useDraftSquad } from "@/lib/hooks";
@@ -15,19 +16,24 @@ import { collectNumbers, useChat } from "./useChat";
 
 export function ChatThread() {
   const { messages, send, busy } = useChat();
-  const { consumePrompt, pendingPrompt } = useApp();
+  const { consumePrompt, pendingPrompt, sendPrompt } = useApp();
+  const { isLoaded, isSignedIn } = useAuth();
+  const clerk = useClerk();
   const [input, setInput] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
   const { names, complete } = useDraftSquad();
+  const signedOut = isLoaded && !isSignedIn;
 
-  // prompts queued from elsewhere in the UI ("ask the assistant…")
+  // prompts queued from elsewhere in the UI ("ask the assistant…") — held
+  // until the user is signed in, so a prompt typed while signed out sends
+  // itself the moment sign-in completes
   useEffect(() => {
-    if (pendingPrompt && !busy) {
+    if (isSignedIn && pendingPrompt && !busy) {
       const p = consumePrompt();
       if (p) void send(p);
     }
-  }, [pendingPrompt, busy, consumePrompt, send]);
+  }, [isSignedIn, pendingPrompt, busy, consumePrompt, send]);
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -80,7 +86,13 @@ export function ChatThread() {
           {suggestions.map((s) => (
             <button
               key={s.label}
-              onClick={() => void send(s.prompt)}
+              onClick={() => {
+                // signed out: queue the prompt — it sends itself after sign-in
+                if (signedOut) {
+                  sendPrompt(s.prompt);
+                  clerk.openSignIn();
+                } else void send(s.prompt);
+              }}
               className="border-line bg-chalk hover:border-royal hover:text-royal rounded-full border px-3 py-1.5 text-xs font-medium"
             >
               {s.label}
@@ -89,31 +101,44 @@ export function ChatThread() {
         </div>
       )}
 
-      <form
-        className="border-line flex gap-2 border-t p-3"
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (input.trim() && !busy) {
-            void send(input);
-            setInput("");
-          }
-        }}
-      >
-        <input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder={busy ? "Pal is thinking…" : "Sell Saka for Palmer, or save?"}
-          aria-label="Ask Pal"
-          disabled={busy}
-          className="border-line bg-chalk focus:border-royal min-w-0 flex-1 rounded-full border px-4 py-2 text-sm outline-none disabled:opacity-60"
-        />
-        <button
-          disabled={busy || !input.trim()}
-          className="btn-primary rounded-full px-4 py-2 text-sm disabled:opacity-50"
+      {signedOut ? (
+        <div className="border-line border-t p-3">
+          <SignInButton mode="modal">
+            <button className="btn-primary w-full rounded-full px-4 py-2 text-sm">
+              Sign in to chat with Pal
+            </button>
+          </SignInButton>
+          <p className="text-slate mt-1.5 text-center text-xs">
+            Free account — one tap with Google.
+          </p>
+        </div>
+      ) : (
+        <form
+          className="border-line flex gap-2 border-t p-3"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (input.trim() && !busy && isLoaded) {
+              void send(input);
+              setInput("");
+            }
+          }}
         >
-          Ask
-        </button>
-      </form>
+          <input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder={busy ? "Pal is thinking…" : "Sell Saka for Palmer, or save?"}
+            aria-label="Ask Pal"
+            disabled={busy}
+            className="border-line bg-chalk focus:border-royal min-w-0 flex-1 rounded-full border px-4 py-2 text-sm outline-none disabled:opacity-60"
+          />
+          <button
+            disabled={busy || !input.trim() || !isLoaded}
+            className="btn-primary rounded-full px-4 py-2 text-sm disabled:opacity-50"
+          >
+            Ask
+          </button>
+        </form>
+      )}
     </div>
   );
 }

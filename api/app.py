@@ -15,12 +15,13 @@ import time
 from contextlib import asynccontextmanager
 
 import numpy as np
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from api import tools as t
+from api.auth import require_user
 from api.data import get_store
 from api.jobs import jobs_enabled, start_background
 from engine.config.season import load_season
@@ -237,7 +238,7 @@ class SquadRequest(BaseModel):
 
 
 @app.post("/squad/optimize")
-def squad_optimize(req: SquadRequest) -> dict:
+def squad_optimize(req: SquadRequest, user: str = Depends(require_user)) -> dict:
     return _ok(t.build_squad(req.budget, req.locked, req.excluded))
 
 
@@ -254,31 +255,24 @@ class ChatRequest(BaseModel):
     messages: list[dict] = Field(min_length=1)
 
 
-# Chat spends real money per request — fixed-window per-IP limit (in-memory,
-# single-process; fine at MVP scale with one uvicorn worker).
+# Chat spends real money per request — signed-in users only, with a
+# fixed-window per-user limit (in-memory, single-process; fine at MVP scale
+# with one uvicorn worker).
 CHAT_LIMIT_PER_HOUR = int(os.environ.get("CHAT_RATE_LIMIT_PER_HOUR", "30"))
 _chat_hits: dict[str, list[float]] = {}
 
 
-def _client_ip(request: Request) -> str:
-    fwd = request.headers.get("x-forwarded-for")
-    if fwd:
-        return fwd.split(",")[0].strip()
-    return request.client.host if request.client else "unknown"
-
-
 @app.post("/chat")
-def chat(req: ChatRequest, request: Request) -> StreamingResponse:
-    ip = _client_ip(request)
+def chat(req: ChatRequest, user: str = Depends(require_user)) -> StreamingResponse:
     now = time.time()
-    hits = [ts for ts in _chat_hits.get(ip, []) if now - ts < 3600]
+    hits = [ts for ts in _chat_hits.get(user, []) if now - ts < 3600]
     if len(hits) >= CHAT_LIMIT_PER_HOUR:
         raise HTTPException(
             status_code=429,
             detail="chat rate limit reached — try again in a little while",
         )
     hits.append(now)
-    _chat_hits[ip] = hits
+    _chat_hits[user] = hits
 
     from api.chat import chat_stream
 

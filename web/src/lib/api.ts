@@ -22,16 +22,21 @@ async function get<T>(path: string): Promise<T> {
   return res.json();
 }
 
-async function post<T>(path: string, body: unknown): Promise<T> {
+async function post<T>(path: string, body: unknown, token?: string): Promise<T> {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (token) headers.Authorization = `Bearer ${token}`;
   const res = await fetch(`${BASE}${path}`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers,
     body: JSON.stringify(body),
   });
   if (!res.ok) {
     const detail = await res.json().catch(() => null);
     const msg =
-      (detail?.detail && (detail.detail.error ?? JSON.stringify(detail.detail))) ??
+      (detail?.detail &&
+        (typeof detail.detail === "string"
+          ? detail.detail
+          : (detail.detail.error ?? JSON.stringify(detail.detail)))) ??
       `${path} → ${res.status}`;
     throw new Error(msg);
   }
@@ -46,22 +51,27 @@ export const api = {
     post<ProjectionsResponse>("/projections", { players }),
   rating: (query: string) =>
     get<RatingExplain>(`/players/${encodeURIComponent(query)}/rating`),
-  optimizeSquad: (body: { budget?: number; locked?: string[]; excluded?: string[] }) =>
-    post<SquadSolution>("/squad/optimize", body),
+  optimizeSquad: (
+    body: { budget?: number; locked?: string[]; excluded?: string[] },
+    token?: string,
+  ) => post<SquadSolution>("/squad/optimize", body, token),
   rateDraft: (players: string[]) => post<SquadSolution>("/squad/rate", { players }),
 };
 
 /** POST /chat and parse the SSE stream into typed events. */
 export async function* streamChat(
   messages: { role: string; content: string }[],
-  signal?: AbortSignal,
+  opts: { signal?: AbortSignal; token?: string } = {},
 ): AsyncGenerator<ChatEvent> {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (opts.token) headers.Authorization = `Bearer ${opts.token}`;
   const res = await fetch(`${CHAT_BASE}/chat`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers,
     body: JSON.stringify({ messages }),
-    signal,
+    signal: opts.signal,
   });
+  if (res.status === 401) throw new Error("sign in to chat with Pal");
   if (res.status === 429) throw new Error("chat rate limit reached — try again in a little while");
   if (!res.ok || !res.body) throw new Error(`chat → ${res.status}`);
   const reader = res.body.getReader();

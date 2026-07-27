@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { ClerkProvider } from "@clerk/nextjs";
 import { Archivo, IBM_Plex_Mono, Instrument_Sans } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/lib/providers";
@@ -37,14 +38,18 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
-      <body
-        className={`${archivo.variable} ${instrument.variable} ${plexMono.variable} antialiased`}
-      >
-        <Providers>
-          <Shell>{children}</Shell>
-        </Providers>
-      </body>
-    </html>
+    // Default (non-dynamic) ClerkProvider: auth state resolves client-side, so
+    // the ISR/static prerenders of public pages are untouched.
+    <ClerkProvider>
+      <html lang="en">
+        <body
+          className={`${archivo.variable} ${instrument.variable} ${plexMono.variable} antialiased`}
+        >
+          <Providers>
+            <Shell>{children}</Shell>
+          </Providers>
+        </body>
+      </html>
+    </ClerkProvider>
   );
 }

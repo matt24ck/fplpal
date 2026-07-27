@@ -18,6 +18,7 @@ dependencies = [
     "anthropic>=0.116",
     "python-dotenv>=1.0",
     "apscheduler>=3.10",
+    "pyjwt[crypto]>=2.8",
 ]
 
 [project.optional-dependencies]

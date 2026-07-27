@@ -6,6 +6,7 @@
  * states are explained inline, never silently blocked. */
 
 import { useMemo, useState } from "react";
+import { useAuth, useClerk } from "@clerk/nextjs";
 import { useMutation } from "@tanstack/react-query";
 import { PageShell } from "@/components/PageShell";
 import { PitchView, type ChipData, type Slot } from "@/components/PitchView";
@@ -33,12 +34,18 @@ export default function BuilderPage() {
     [explorer],
   );
 
+  const { isLoaded: authLoaded, isSignedIn, getToken } = useAuth();
+  const clerk = useClerk();
+
   const optimize = useMutation({
-    mutationFn: () =>
-      api.optimizeSquad({
-        budget: (meta?.squad_rules.budget ?? 1000) / 10,
-        locked: names,
-      }),
+    mutationFn: async () =>
+      api.optimizeSquad(
+        {
+          budget: (meta?.squad_rules.budget ?? 1000) / 10,
+          locked: names,
+        },
+        (await getToken()) ?? undefined,
+      ),
     onSuccess: (sol) => {
       const codes = [...sol.starting_xi, ...sol.bench_in_order]
         .map((p) => byName.get(p.player)?.code)
@@ -102,8 +109,13 @@ export default function BuilderPage() {
           </span>
           <span className="ml-auto flex gap-2">
             <button
-              onClick={() => optimize.mutate()}
-              disabled={optimize.isPending || !explorer}
+              onClick={() => {
+                // optimizer runs are a signed-in feature — the API enforces it too
+                if (!isSignedIn) return clerk.openSignIn();
+                optimize.mutate();
+              }}
+              disabled={optimize.isPending || !explorer || !authLoaded}
+              title={isSignedIn ? undefined : "Sign in to optimize (free)"}
               className="btn-primary rounded-full px-3.5 py-1.5 text-sm disabled:opacity-50"
             >
               {optimize.isPending

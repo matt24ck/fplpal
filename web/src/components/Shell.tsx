@@ -1,5 +1,6 @@
 "use client";
 
+import { SignInButton, UserButton, useAuth } from "@clerk/nextjs";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useId, useState } from "react";
@@ -21,6 +22,7 @@ const NAV = [
 export function Shell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { chatOpen, setChatOpen } = useApp();
+  const { isLoaded, isSignedIn } = useAuth();
   const onChatPage = pathname === "/chat";
   /* The rail mounts client-side only. During streaming SSR the page chunk
    * arrives late, so Shell siblings render first — if the rail subscribed to
@@ -86,6 +88,16 @@ export function Shell({ children }: { children: React.ReactNode }) {
                 Ask Pal
               </button>
             )}
+            {isLoaded &&
+              (isSignedIn ? (
+                <UserButton />
+              ) : (
+                <SignInButton mode="modal">
+                  <button className="border-chalk/35 text-chalk hover:border-chalk rounded-full border px-3.5 py-1.5 text-sm font-medium">
+                    Sign in
+                  </button>
+                </SignInButton>
+              ))}
           </div>
         </div>
       </header>

@@ -16,6 +16,9 @@ import type { ChatMessage } from "./types";
 
 const DRAFT_KEY = "fpl-ai:draft";
 const TEAM_ID_KEY = "fpl-ai:team-id";
+// sessionStorage: a prompt queued while signed out must survive the OAuth
+// round-trip (full page navigation) and send itself on return
+const PENDING_KEY = "fpl-ai:pending-prompt";
 
 interface AppState {
   hydrated: boolean;
@@ -56,6 +59,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const d = localStorage.getItem(DRAFT_KEY);
       if (d) setDraftState(JSON.parse(d));
       setTeamIdState(localStorage.getItem(TEAM_ID_KEY));
+      const p = sessionStorage.getItem(PENDING_KEY);
+      if (p) {
+        pendingRef.current = p;
+        setPendingPrompt(p);
+      }
     } catch {
       // corrupt storage — start clean
     }
@@ -102,12 +110,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     pendingRef.current = text;
     setPendingPrompt(text);
     setChatOpen(true);
+    sessionStorage.setItem(PENDING_KEY, text);
   }, []);
 
   const consumePrompt = useCallback(() => {
     const p = pendingRef.current;
     pendingRef.current = null;
     setPendingPrompt(null);
+    sessionStorage.removeItem(PENDING_KEY);
     return p;
   }, []);
 

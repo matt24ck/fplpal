@@ -1,5 +1,6 @@
 "use client";
 
+import { useAuth } from "@clerk/nextjs";
 import { useCallback } from "react";
 import { streamChat } from "@/lib/api";
 import { useApp } from "@/lib/store";
@@ -55,6 +56,7 @@ function serialize(messages: ChatMessage[]): { role: string; content: string }[]
 
 export function useChat() {
   const { messages, setMessages, chatBusy, setChatBusy, setHighlight } = useApp();
+  const { getToken } = useAuth();
 
   const send = useCallback(
     async (text: string) => {
@@ -68,7 +70,8 @@ export function useChat() {
       const push = () => setMessages([...history, { ...assistant, parts: [...assistant.parts] }]);
 
       try {
-        for await (const ev of streamChat(serialize(history))) {
+        const token = (await getToken()) ?? undefined;
+        for await (const ev of streamChat(serialize(history), { token })) {
           if (ev.event === "text") {
             const last = assistant.parts[assistant.parts.length - 1];
             if (last?.type === "text") last.text += ev.data.delta;
@@ -113,7 +116,7 @@ export function useChat() {
         setChatBusy(false);
       }
     },
-    [chatBusy, messages, setChatBusy, setHighlight, setMessages],
+    [chatBusy, getToken, messages, setChatBusy, setHighlight, setMessages],
   );
 
   return { messages, send, busy: chatBusy };

@@ -34,6 +34,8 @@ python -m engine.config.verify
 python -m engine.pipeline
 
 # Serve the API (REST + grounded chat at POST /chat; chat needs ANTHROPIC_API_KEY)
+# Gated endpoints (/chat, /squad/optimize) verify Clerk sessions — set CLERK_ISSUER
+# in .env (Clerk dashboard → Frontend API URL), or AUTH_DISABLED=1 to skip auth locally
 uvicorn api.app:app --reload
 
 # Grounding evals for the chat layer (needs ANTHROPIC_API_KEY)
@@ -45,12 +47,17 @@ python -m backtest.grounding_evals
 ```powershell
 cd web
 npm install
+copy .env.local.example .env.local   # then paste your Clerk dev keys into it
 npm run dev        # http://localhost:3000 — expects the API on 127.0.0.1:8000
 ```
 
 The Next.js app proxies `/api/engine/*` to the FastAPI server (override with
 `ENGINE_API_URL`), so the browser talks to one origin. Production: `npm run
 build` then `npm run start`.
+
+Accounts are Clerk (Google one-tap). Signed-out visitors get the builder,
+rate-my-draft, Players, Fixtures, and About; chatting with Pal, the Planner,
+and optimizer runs require sign-in — enforced by the API, not just the UI.
 
 Snapshots land in `data/snapshots/<endpoint>/<utc-timestamp>.json.gz`. Every API pull is archived raw so all downstream work is reproducible. Pipeline output (per-fixture and per-GW projections, ratings) lands in `data/live/` with provenance columns.
 
