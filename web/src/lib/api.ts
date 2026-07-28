@@ -7,6 +7,7 @@ import type {
   ProjectionsResponse,
   RatingExplain,
   SquadSolution,
+  TeamState,
   TransferPlan,
 } from "./types";
 
@@ -22,7 +23,16 @@ async function get<T>(path: string, token?: string): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
     headers: token ? { Authorization: `Bearer ${token}` } : undefined,
   });
-  if (!res.ok) throw new Error(`${path} → ${res.status}`);
+  if (!res.ok) {
+    const detail = await res.json().catch(() => null);
+    const msg =
+      (detail?.detail &&
+        (typeof detail.detail === "string"
+          ? detail.detail
+          : (detail.detail.error ?? JSON.stringify(detail.detail)))) ??
+      `${path} → ${res.status}`;
+    throw new Error(msg);
+  }
   return res.json();
 }
 
@@ -67,7 +77,8 @@ export const api = {
   rateDraft: (players: string[]) => post<SquadSolution>("/squad/rate", { players }),
   planTransfers: (
     body: {
-      players: string[];
+      players?: string[];
+      team_id?: number;
       bank?: number;
       free_transfers?: number;
       horizon?: number;
@@ -76,9 +87,17 @@ export const api = {
     token?: string,
   ) => post<TransferPlan>("/transfers/plan", body, token),
   adviseChips: (
-    body: { players: string[]; bank?: number; free_transfers?: number; chips?: string[] },
+    body: {
+      players?: string[];
+      team_id?: number;
+      bank?: number;
+      free_transfers?: number;
+      chips?: string[];
+    },
     token?: string,
   ) => post<ChipAdviceResponse>("/chips/advise", body, token),
+  // public FPL entry state (opens once the manager's first deadline passes)
+  team: (id: string) => get<TeamState>(`/team/${encodeURIComponent(id)}`),
   // signed-in only: server-side copy of the draft + team ID (cross-device sync)
   myState: (token: string) => get<UserState>("/me/state", token),
   saveMyState: (state: UserState, token: string) =>

@@ -3,7 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { api } from "./api";
 import { useApp } from "./store";
-import type { ExplorerPlayer, Position } from "./types";
+import type { ExplorerPlayer, Position, TeamState } from "./types";
 import { POSITIONS } from "./format";
 
 export const useMeta = () => useQuery({ queryKey: ["meta"], queryFn: api.meta });
@@ -48,6 +48,18 @@ export function useDraftSquad(): {
       ),
     ready: hydrated && !!data,
   };
+}
+
+/** The user's real FPL team, imported from their saved team ID. Returns the
+ * honest `pending` state until FPL makes picks public (first deadline). */
+export function useTeamState(teamId: string | null) {
+  return useQuery<TeamState>({
+    queryKey: ["team", teamId],
+    queryFn: () => api.team(teamId!),
+    enabled: !!teamId,
+    staleTime: 5 * 60_000,
+    retry: false, // a bad ID 404s — don't hammer the FPL API
+  });
 }
 
 /** Rate the current 15 — powers My Team's XI/captain view. */

@@ -179,6 +179,44 @@ export interface ChipAdviceResponse {
   errors?: unknown[];
 }
 
+/** Real team import (GET /team/{id}) — live FPL entry state. */
+export interface TeamPlayer {
+  element: number;
+  code: number;
+  player: string;
+  position: Position;
+  team: string;
+  current_price: number; // tenths of £m
+  purchase_price: number;
+  selling_price: number;
+  squad_position: number | null; // 1-11 XI, 12-15 bench, from the last picks
+  is_captain: boolean;
+  is_vice_captain: boolean;
+}
+
+export interface TeamState {
+  status: "ok" | "pending";
+  team_id: number;
+  team_name?: string;
+  manager?: string;
+  gw?: number;
+  overall_points?: number | null;
+  overall_rank?: number | null;
+  last_gw_points?: number | null;
+  squad?: TeamPlayer[];
+  bank?: number; // tenths
+  team_value?: number; // tenths
+  free_transfers?: number;
+  active_chip?: string | null;
+  chips_played?: { name: string; event: number }[];
+  chips_available?: string[];
+  approx_purchase_prices?: boolean;
+  pending_transfers?: number;
+  fetched_at?: string;
+  note?: string;
+  warnings?: string[];
+}
+
 /** Chat stream events (api/chat.py SSE). */
 export type ChatEvent =
   | { event: "text"; data: { delta: string } }

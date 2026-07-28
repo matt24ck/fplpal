@@ -23,6 +23,7 @@ export const TOOL_LABELS: Record<string, string> = {
   explain_rating: "Rating breakdown",
   build_squad: "Optimal squad",
   rate_my_draft: "Draft verdict",
+  import_team: "Team import",
   plan_transfers: "Transfer plan",
   chip_advice: "Chip advisor",
 };
@@ -36,6 +37,7 @@ export const TOOL_RUNNING: Record<string, string> = {
   explain_rating: "breaking down the rating",
   build_squad: "solving the squad (MILP)",
   rate_my_draft: "rating your draft",
+  import_team: "importing the team from FPL",
   plan_transfers: "solving the transfer plan (MILP)",
   chip_advice: "pricing chip weeks",
 };
@@ -131,6 +133,8 @@ function CardBody({ name, result }: { name: string; result: Obj }) {
     case "build_squad":
     case "rate_my_draft":
       return <SolutionCard r={result} />;
+    case "import_team":
+      return <TeamImportCard r={result} />;
     case "plan_transfers":
       return <TransferPlanCard r={result} />;
     case "chip_advice":
@@ -138,6 +142,47 @@ function CardBody({ name, result }: { name: string; result: Obj }) {
     default:
       return <Generic value={result} />;
   }
+}
+
+function TeamImportCard({ r }: { r: Obj }) {
+  if (r.status === "pending")
+    return (
+      <p className="text-slate text-sm">
+        {typeof r.note === "string" ? r.note : "picks aren't public yet"}
+      </p>
+    );
+  const squad = (r.squad as Obj[] | undefined) ?? [];
+  return (
+    <div className="text-sm">
+      <p>
+        <strong>{String(r.team_name ?? "")}</strong>
+        {r.overall_rank != null && (
+          <span className="text-slate font-mono text-xs">
+            {" "}
+            · rank {Number(r.overall_rank).toLocaleString()}
+          </span>
+        )}
+        <span className="text-slate font-mono text-xs">
+          {" "}
+          · bank {String(r.bank)} · {String(r.free_transfers)} FT
+        </span>
+      </p>
+      <p className="mt-1 leading-relaxed">
+        {squad.map((p, i) => (
+          <span key={i}>
+            {i > 0 && ", "}
+            {String(p.player)}
+            {p.captain ? " (C)" : p.vice_captain ? " (V)" : ""}
+          </span>
+        ))}
+      </p>
+      {Array.isArray(r.chips_available) && (
+        <p className="text-slate mt-1 text-xs">
+          chips in hand: {(r.chips_available as string[]).join(", ") || "none"}
+        </p>
+      )}
+    </div>
+  );
 }
 
 function ChipAdviceCard({ r }: { r: Obj }) {

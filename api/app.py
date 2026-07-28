@@ -252,7 +252,8 @@ def squad_rate(req: DraftRequest) -> dict:
 
 
 class TransferPlanRequest(BaseModel):
-    players: list[str] = Field(min_length=15, max_length=15)
+    players: list[str] | None = Field(default=None, min_length=15, max_length=15)
+    team_id: int | None = Field(default=None, ge=1)
     bank: float = Field(default=0.0, ge=0.0)
     free_transfers: int = Field(default=1, ge=0, le=5)
     horizon: int | None = Field(default=None, ge=2, le=8)
@@ -264,12 +265,15 @@ class TransferPlanRequest(BaseModel):
 @app.post("/transfers/plan")
 def transfers_plan(req: TransferPlanRequest, user: str = Depends(require_user)) -> dict:
     return _ok(
-        t.plan_transfers(req.players, req.bank, req.free_transfers, req.horizon, req.alternatives)
+        t.plan_transfers(
+            req.players, req.bank, req.free_transfers, req.horizon, req.alternatives, req.team_id
+        )
     )
 
 
 class ChipAdviceRequest(BaseModel):
-    players: list[str] = Field(min_length=15, max_length=15)
+    players: list[str] | None = Field(default=None, min_length=15, max_length=15)
+    team_id: int | None = Field(default=None, ge=1)
     bank: float = Field(default=0.0, ge=0.0)
     free_transfers: int = Field(default=1, ge=0, le=5)
     chips: list[str] | None = None
@@ -277,7 +281,17 @@ class ChipAdviceRequest(BaseModel):
 
 @app.post("/chips/advise")
 def chips_advise(req: ChipAdviceRequest, user: str = Depends(require_user)) -> dict:
-    return _ok(t.chip_advice(req.players, req.bank, req.free_transfers, req.chips))
+    return _ok(t.chip_advice(req.players, req.bank, req.free_transfers, req.chips, req.team_id))
+
+
+# Public FPL data (entry endpoints), briefly cached server-side; no auth —
+# picks are public by design once a GW starts, and no engine compute runs.
+@app.get("/team/{team_id}")
+def team_state(team_id: int) -> dict:
+    from engine.ingest.team_state import fetch_team_state
+
+    rules = load_season(get_store().provenance["season"])
+    return _ok(fetch_team_state(team_id, rules.chips.first_half_deadline_gw))
 
 
 # --- per-user state (cross-device draft/team-id sync) ---------------------

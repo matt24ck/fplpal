@@ -197,50 +197,74 @@ def rate_my_draft(players: list[str]) -> str:
 
 
 @beta_tool
+def import_team(team_id: int) -> str:
+    """Import a manager's real FPL team from their public team ID: the 15
+    with purchase/sell prices, bank, free transfers, chips played and still
+    available, and season rank. Call this whenever the user shares a team ID
+    or asks about "my team" and has given one. Before the season's first
+    deadline FPL keeps picks private — the tool then returns an honest
+    pending state; report it as such.
+
+    Args:
+        team_id: The numeric FPL team ID (from the FPL site's Points page URL).
+    """
+    return _json(t.import_team(team_id))
+
+
+@beta_tool
 def plan_transfers(
-    players: list[str],
+    players: list[str] | None = None,
     bank: float = 0.0,
     free_transfers: int = 1,
     horizon: int | None = None,
+    team_id: int | None = None,
 ) -> str:
     """Multi-gameweek transfer plan solved by the engine's MILP: which moves
     to make and when, whether a −4 hit pays for itself, and when to bank a
     free transfer. Call this when the user asks about transfers, hits, or
-    planning ahead — it needs their current 15 players (ask for them, or use
-    the draft if they've shared it). Before GW1 it runs as a preview that
-    treats the draft as locked from GW1.
+    planning ahead. If the user has shared their FPL team ID, pass team_id —
+    the engine imports their real squad, bank, free transfers, and sell
+    prices; otherwise it needs their current 15 players (ask for them, or
+    use the draft if they've shared it). Before GW1 it runs as a preview
+    that treats the squad as locked from GW1.
 
     Args:
-        players: The user's current 15 players (2 GKP, 5 DEF, 5 MID, 3 FWD).
-        bank: Money in the bank in millions, e.g. 0.5.
-        free_transfers: Free transfers available now (1-5).
+        players: The user's current 15 players (2 GKP, 5 DEF, 5 MID, 3 FWD);
+            omit when passing team_id.
+        bank: Money in the bank in millions, e.g. 0.5 (ignored with team_id).
+        free_transfers: Free transfers available now (1-5; ignored with team_id).
         horizon: How many gameweeks to plan over (default: the full projection window).
+        team_id: The user's numeric FPL team ID, if they've shared it.
     """
-    return _json(t.plan_transfers(players, bank, free_transfers, horizon))
+    return _json(t.plan_transfers(players, bank, free_transfers, horizon, 1, team_id))
 
 
 @beta_tool
 def chip_advice(
-    players: list[str],
+    players: list[str] | None = None,
     bank: float = 0.0,
     free_transfers: int = 1,
     chips: list[str] | None = None,
+    team_id: int | None = None,
 ) -> str:
     """Chip advice (wildcard / free hit / bench boost / triple captain):
     engine-computed expected gain for playing each chip in every visible
     gameweek, on top of the optimal transfer plan. Call this when the user
-    asks when to play a chip — it needs their current 15 (ask if you don't
-    have them). Report the engine's assessment honestly, including "no
+    asks when to play a chip. If the user has shared their FPL team ID, pass
+    team_id — the engine imports their real squad and restricts to chips
+    actually still in hand; otherwise it needs their current 15 (ask if you
+    don't have them). Report the engine's assessment honestly, including "no
     standout week visible" — the window only covers the next few GWs.
 
     Args:
-        players: The user's current 15 players (2 GKP, 5 DEF, 5 MID, 3 FWD).
-        bank: Money in the bank in millions.
-        free_transfers: Free transfers available now (1-5).
+        players: The user's current 15 players (omit when passing team_id).
+        bank: Money in the bank in millions (ignored with team_id).
+        free_transfers: Free transfers available now (1-5; ignored with team_id).
         chips: Which chips they still hold, from: wildcard, freehit, bboost,
-            triple_captain (omit for all four).
+            triple_captain (omit for all four, or for team_id's real state).
+        team_id: The user's numeric FPL team ID, if they've shared it.
     """
-    return _json(t.chip_advice(players, bank, free_transfers, chips))
+    return _json(t.chip_advice(players, bank, free_transfers, chips, team_id))
 
 
 TOOLS = [
@@ -252,6 +276,7 @@ TOOLS = [
     explain_rating,
     build_squad,
     rate_my_draft,
+    import_team,
     plan_transfers,
     chip_advice,
 ]

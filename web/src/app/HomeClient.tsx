@@ -1,8 +1,9 @@
 "use client";
 
-/** My Team — home. Pre-season: the draft on the board with overlays, the
- * This Week panel, and chip status. No draft yet → the Ask Pal hero and
- * onboarding. */
+/** My Team — home. With a saved team ID and picks public (post-GW1), the
+ * real imported squad is the board: FPL's XI, captain, and bench order,
+ * bank/value/FT state, and real chip usage. Otherwise the draft flow:
+ * the draft on the board with overlays, or onboarding. */
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
@@ -13,16 +14,71 @@ import { PitchView, type ChipData, type Slot } from "@/components/PitchView";
 import { PlayerDrawer } from "@/components/PlayerDrawer";
 import { PalMark, SparkIcon } from "@/components/Shell";
 import { countdown, formatDeadline, pts } from "@/lib/format";
-import { useDraftLineup, useDraftSquad, useExplorer, useMeta } from "@/lib/hooks";
+import {
+  useDraftLineup,
+  useDraftSquad,
+  useExplorer,
+  useMeta,
+  useTeamState,
+} from "@/lib/hooks";
 import { useApp } from "@/lib/store";
-import type { ExplorerPlayer, Position } from "@/lib/types";
+import type { ExplorerPlayer, Position, TeamState } from "@/lib/types";
 
 type Overlay = "xpts" | "fixtures";
 type Horizon = "next" | "window";
 
+/** The minimal lineup shape the board renders — the MILP solution and the
+ * imported real team both produce it. */
+type BoardPlayer = {
+  player: string;
+  position: Position;
+  captain?: boolean;
+  vice_captain?: boolean;
+};
+type BoardLineup = {
+  formation: string;
+  xi_plus_captain_xpts?: number;
+  starting_xi: BoardPlayer[];
+  bench_in_order: BoardPlayer[];
+};
+
+/** The imported team as a board lineup: FPL's own XI/captain/bench order,
+ * projected with the engine's per-GW xPts. */
+function realLineup(
+  state: TeamState,
+  byName: Map<string, ExplorerPlayer>,
+  firstGw: number | undefined,
+): BoardLineup {
+  const squad = state.squad ?? [];
+  const pos = (p: { squad_position: number | null }) => p.squad_position ?? 99;
+  const xi = squad.filter((p) => pos(p) <= 11);
+  const bench = squad.filter((p) => pos(p) > 11).sort((a, b) => pos(a) - pos(b));
+  const gwXp = (name: string) =>
+    firstGw != null ? (byName.get(name)?.gw_xpts[String(firstGw)] ?? 0) : 0;
+  const toBoard = (p: (typeof squad)[number]): BoardPlayer => ({
+    player: p.player,
+    position: p.position,
+    captain: p.is_captain || undefined,
+    vice_captain: p.is_vice_captain || undefined,
+  });
+  const counts = { DEF: 0, MID: 0, FWD: 0 } as Record<string, number>;
+  for (const p of xi) if (p.position !== "GKP") counts[p.position] += 1;
+  const base = xi.reduce((s, p) => s + gwXp(p.player), 0);
+  const capExtra = xi.filter((p) => p.is_captain).reduce((s, p) => s + gwXp(p.player), 0);
+  return {
+    formation: `${counts.DEF}-${counts.MID}-${counts.FWD}`,
+    xi_plus_captain_xpts: Math.round((base + capExtra) * 10) / 10,
+    starting_xi: xi.map(toBoard),
+    bench_in_order: bench.map(toBoard),
+  };
+}
+
 export default function MyTeamPage() {
+  const { teamId } = useApp();
+  const team = useTeamState(teamId);
+  const real = team.data?.status === "ok" ? team.data : null;
   const { names, complete, ready, players } = useDraftSquad();
-  const lineup = useDraftLineup(names, complete);
+  const lineup = useDraftLineup(names, complete && !real);
   const { data: explorer } = useExplorer();
   const { data: meta } = useMeta();
   const [overlay, setOverlay] = useState<Overlay>("xpts");
@@ -35,15 +91,23 @@ export default function MyTeamPage() {
   );
   const firstGw = meta?.provenance.gw_window[0];
 
-  if (!ready) return <PageShell title="My Team">Loading the board…</PageShell>;
-  if (!complete)
+  if (!ready || (teamId && team.isLoading))
+    return <PageShell title="My Team">Loading the board…</PageShell>;
+  if (!real && !complete)
     return (
       <PageShell title="My Team">
-        <Onboarding drafted={players.length} />
+        <Onboarding
+          drafted={players.length}
+          teamPending={team.data?.status === "pending"}
+          teamError={team.error ? String((team.error as Error).message) : null}
+        />
       </PageShell>
     );
 
-  const sol = lineup.data;
+  const sol: BoardLineup | undefined = real
+    ? realLineup(real, byName, firstGw)
+    : lineup.data;
+  const squadNames = real ? (real.squad ?? []).map((p) => p.player) : names;
   const toChip = (sp: {
     player: string;
     position: Position;
@@ -88,15 +152,36 @@ export default function MyTeamPage() {
     <PageShell
       title="My Team"
       right={
-        <Link href="/builder" className="text-royal text-sm font-medium hover:underline">
-          Edit draft →
-        </Link>
+        !real ? (
+          <Link href="/builder" className="text-royal text-sm font-medium hover:underline">
+            Edit draft →
+          </Link>
+        ) : undefined
       }
     >
       {/* Pal is a tab away on mobile — put the question box in reach */}
       <div className="mb-4 lg:hidden">
         <AskPalBar className="border-line border shadow-sm" />
       </div>
+
+      {real && (
+        <p className="text-slate mb-3 text-sm">
+          <span className="text-ink font-medium">{real.team_name}</span> ·{" "}
+          {real.manager} · imported from FPL after GW{real.gw}
+          {real.overall_rank != null && (
+            <>
+              {" "}
+              · rank <span className="font-mono">{real.overall_rank.toLocaleString()}</span>
+            </>
+          )}
+          {real.note && <span className="text-slate/80 block text-xs">{real.note}</span>}
+          {real.warnings?.map((w) => (
+            <span key={w} className="text-card-yellow block text-xs">
+              ⚠ {w}
+            </span>
+          ))}
+        </p>
+      )}
 
       <div className="flex flex-col gap-6 xl:flex-row">
         <div className="min-w-0 flex-1">
@@ -129,7 +214,9 @@ export default function MyTeamPage() {
             )}
           </div>
 
-          {lineup.isLoading && <p className="text-slate text-sm">Picking your best XI…</p>}
+          {!real && lineup.isLoading && (
+            <p className="text-slate text-sm">Picking your best XI…</p>
+          )}
           {sol && (
             <PitchView
               rows={rows}
@@ -148,9 +235,10 @@ export default function MyTeamPage() {
             captain={sol?.starting_xi.find((p) => p.captain)?.player}
             formation={sol?.formation}
             flagged={flagged.map((f) => f.player)}
-            names={names}
+            names={squadNames}
+            real={real}
           />
-          <ChipsCard />
+          <ChipsCard state={real} />
           {/* desktop finds About in the masthead nav; mobile gets it here */}
           <Link
             href="/about"
@@ -177,12 +265,14 @@ function ThisWeek({
   formation,
   flagged,
   names,
+  real,
 }: {
   projected?: number;
   captain?: string;
   formation?: string;
   flagged: string[];
   names: string[];
+  real?: TeamState | null;
 }) {
   const { data: meta } = useMeta();
   const ask = useAskPal();
@@ -215,6 +305,24 @@ function ThisWeek({
         </Row>
         <Row label="Captain">{captain ?? "—"}</Row>
         <Row label="Formation">{formation ?? "—"}</Row>
+        {real && (
+          <>
+            <Row label="Bank">
+              <span className="font-mono">£{((real.bank ?? 0) / 10).toFixed(1)}m</span>
+            </Row>
+            <Row label="Team value">
+              <span className="font-mono">£{((real.team_value ?? 0) / 10).toFixed(1)}m</span>
+            </Row>
+            <Row label="Free transfers">
+              <span className="font-mono">{real.free_transfers}</span>
+            </Row>
+            {real.last_gw_points != null && (
+              <Row label={`GW${real.gw} points`}>
+                <span className="font-mono">{real.last_gw_points}</span>
+              </Row>
+            )}
+          </>
+        )}
         <Row label="Flags">
           {flagged.length === 0 ? (
             "none"
@@ -226,7 +334,13 @@ function ThisWeek({
         </Row>
       </dl>
       <button
-        onClick={() => ask(`Review my draft and its weak spots: ${names.join(", ")}`)}
+        onClick={() =>
+          ask(
+            real
+              ? `Review my FPL team (ID ${real.team_id}) and its weak spots`
+              : `Review my draft and its weak spots: ${names.join(", ")}`,
+          )
+        }
         className="border-line hover:border-royal hover:text-royal mt-3 flex w-full items-center justify-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium"
       >
         <SparkIcon className="h-3 w-3" />
@@ -245,7 +359,15 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
   );
 }
 
-function Onboarding({ drafted }: { drafted: number }) {
+function Onboarding({
+  drafted,
+  teamPending,
+  teamError,
+}: {
+  drafted: number;
+  teamPending?: boolean;
+  teamError?: string | null;
+}) {
   const { teamId, setTeamId } = useApp();
   const [idInput, setIdInput] = useState("");
 
@@ -292,12 +414,23 @@ function Onboarding({ drafted }: { drafted: number }) {
             (FPL only makes picks public then).
           </p>
           {teamId ? (
-            <p className="mt-4 text-sm">
-              Saved: <span className="font-mono">{teamId}</span>{" "}
-              <button onClick={() => setTeamId(null)} className="text-royal underline">
-                change
-              </button>
-            </p>
+            <div className="mt-4 text-sm">
+              <p>
+                Saved: <span className="font-mono">{teamId}</span>{" "}
+                <button onClick={() => setTeamId(null)} className="text-royal underline">
+                  change
+                </button>
+              </p>
+              {teamPending && (
+                <p className="text-neon-deep mt-1.5 text-xs">
+                  ✓ ID checked — your squad imports here automatically once FPL
+                  makes picks public after the GW1 deadline.
+                </p>
+              )}
+              {teamError && (
+                <p className="text-card-red mt-1.5 text-xs">{teamError}</p>
+              )}
+            </div>
           ) : (
             <form
               className="mt-4 flex gap-2"

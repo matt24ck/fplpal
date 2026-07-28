@@ -1,10 +1,9 @@
 "use client";
 
 /** Planner — the multi-GW transfer plan, solved by the engine's MILP over
- * the projection window. Pre-season it runs as a preview on the draft
- * (honestly labeled: transfers are unlimited until the GW1 deadline); after
- * real team import lands it will plan from the live squad, bank, and FTs.
- * Chip timing stays an honest not-yet state (ChipsCard). */
+ * the projection window. With an imported team (saved ID, post-GW1) it
+ * plans from the REAL squad, bank, free transfers, and sell prices; before
+ * that it runs as an honestly-labeled preview on the draft. */
 
 import Link from "next/link";
 import { useAuth, useClerk } from "@clerk/nextjs";
@@ -13,7 +12,8 @@ import { ChipsCard } from "@/components/ChipsCard";
 import { PageShell } from "@/components/PageShell";
 import { api } from "@/lib/api";
 import { pts } from "@/lib/format";
-import { useDraftSquad, useMeta } from "@/lib/hooks";
+import { useDraftSquad, useMeta, useTeamState } from "@/lib/hooks";
+import { useApp } from "@/lib/store";
 import type {
   ChipAdviceResponse,
   PlanWeek,
@@ -23,6 +23,9 @@ import type {
 
 export default function PlannerPage() {
   const { data: meta } = useMeta();
+  const { teamId } = useApp();
+  const team = useTeamState(teamId);
+  const real = team.data?.status === "ok" ? team.data : null;
   const { players, names, complete, ready } = useDraftSquad();
   const { isLoaded: authLoaded, isSignedIn, getToken } = useAuth();
   const clerk = useClerk();
@@ -30,11 +33,14 @@ export default function PlannerPage() {
   const budget = meta?.squad_rules.budget ?? 1000;
   const spent = players.reduce((s, p) => s + p.price, 0);
   const bank = Math.max(0, budget - spent) / 10;
+  const canPlan = !!real || complete;
 
   const plan = useMutation({
     mutationFn: async () =>
       api.planTransfers(
-        { players: names, bank, free_transfers: 1, alternatives: 1 },
+        real
+          ? { team_id: real.team_id, alternatives: 1 }
+          : { players: names, bank, free_transfers: 1, alternatives: 1 },
         (await getToken()) ?? undefined,
       ),
   });
@@ -42,18 +48,21 @@ export default function PlannerPage() {
   const chips = useMutation({
     mutationFn: async () =>
       api.adviseChips(
-        { players: names, bank, free_transfers: 1 },
+        real
+          ? { team_id: real.team_id }
+          : { players: names, bank, free_transfers: 1 },
         (await getToken()) ?? undefined,
       ),
   });
 
-  if (!ready) return <PageShell title="Planner">Loading the player pool…</PageShell>;
+  if (!ready || (teamId && team.isLoading))
+    return <PageShell title="Planner">Loading the player pool…</PageShell>;
 
   return (
     <PageShell title="Planner">
       <div className="grid items-start gap-4 lg:grid-cols-3">
         <div className="space-y-4 lg:col-span-2">
-          {!complete ? (
+          {!canPlan ? (
             <div className="border-line bg-chalk rounded-xl border p-5">
               <h3 className="font-chip text-sm font-semibold tracking-wide">
                 The planner works from your 15
@@ -83,8 +92,17 @@ export default function PlannerPage() {
                   </h3>
                   <p className="text-slate mt-1 text-sm">
                     One MILP over GW{meta?.provenance.gw_window[0]}–
-                    {meta?.provenance.gw_window[1]}: moves, timing, hits vs. banking —
-                    from your draft with £{bank.toFixed(1)}m in the bank.
+                    {meta?.provenance.gw_window[1]}: moves, timing, hits vs. banking —{" "}
+                    {real ? (
+                      <>
+                        from your imported team{" "}
+                        <span className="text-ink">“{real.team_name}”</span> with £
+                        {((real.bank ?? 0) / 10).toFixed(1)}m in the bank,{" "}
+                        {real.free_transfers} FT, and real sell prices.
+                      </>
+                    ) : (
+                      <>from your draft with £{bank.toFixed(1)}m in the bank.</>
+                    )}
                   </p>
                 </div>
                 <button
@@ -117,7 +135,7 @@ export default function PlannerPage() {
 
           {plan.data && <PlanResult plan={plan.data} />}
 
-          {complete && (
+          {canPlan && (
             <div className="border-line bg-chalk rounded-xl border p-5">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
@@ -151,7 +169,7 @@ export default function PlannerPage() {
         </div>
 
         <div className="space-y-4">
-          <ChipsCard />
+          <ChipsCard state={real} />
           {meta?.next_deadline && (
             <div className="border-line bg-chalk rounded-xl border p-4">
               <h3 className="font-chip text-slate mb-1 text-xs font-semibold tracking-wide">

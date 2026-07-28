@@ -68,6 +68,10 @@ class FplApi:
         """A manager's picks for a gameweek (public once the GW starts)."""
         return self._get(f"entry/{team_id}/event/{gameweek}/picks/")
 
+    def entry_transfers(self, team_id: int) -> list[dict[str, Any]]:
+        """A manager's full transfer history (element in/out with prices paid)."""
+        return self._get(f"entry/{team_id}/transfers/")
+
     # -- plumbing ----------------------------------------------------------
 
     def _get(self, path: str, params: dict[str, Any] | None = None) -> Any:

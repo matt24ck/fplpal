@@ -18,6 +18,8 @@ import numpy as np
 import pandas as pd
 
 from api.data import LiveStore, get_store
+from engine.config.season import load_season
+from engine.ingest.team_state import fetch_team_state
 from engine.models.points import COMPONENTS
 from engine.models.ratings import SUBSCORES
 from engine.optimize.chips import CHIPS, advise_chips
@@ -349,6 +351,74 @@ def _resolve_squad(store: LiveStore, players: list[str]) -> tuple[pd.DataFrame |
     return squad_df, None
 
 
+def _fmt_m(tenths: int | float | None) -> str | None:
+    return None if tenths is None else f"£{tenths / 10:.1f}m"
+
+
+def import_team(team_id: int) -> dict:
+    """A manager's live FPL state from their public team ID: squad with
+    purchase/sell prices, bank, free transfers, chips. Pre-deadline this is
+    an honest ``pending`` payload."""
+    store = get_store()
+    rules = load_season(store.provenance["season"])
+    state = fetch_team_state(int(team_id), rules.chips.first_half_deadline_gw)
+    if "error" in state or state.get("status") == "pending":
+        return state
+    return {
+        **{k: v for k, v in state.items() if k not in ("squad", "bank", "team_value")},
+        "squad": [
+            {
+                "player": p["player"],
+                "position": p["position"],
+                "team": p["team"],
+                "price": _fmt_m(p["current_price"]),
+                "selling_price": _fmt_m(p["selling_price"]),
+                **({"captain": True} if p["is_captain"] else {}),
+                **({"vice_captain": True} if p["is_vice_captain"] else {}),
+                **({"benched": True} if (p["squad_position"] or 0) > 11 else {}),
+            }
+            for p in state["squad"]
+        ],
+        "bank": _fmt_m(state["bank"]),
+        "team_value": _fmt_m(state["team_value"]),
+        "source": "live FPL API (public entry endpoints), not engine projections",
+    }
+
+
+def _team_inputs(store: LiveStore, team_id: int) -> tuple[dict | None, dict | None]:
+    """Resolve an imported team to planner inputs: squad rows keyed by the
+    stable player code, sell values, bank, and free transfers."""
+    rules = load_season(store.provenance["season"])
+    state = fetch_team_state(int(team_id), rules.chips.first_half_deadline_gw)
+    if "error" in state:
+        return None, {"error": state["error"]}
+    if state.get("status") == "pending":
+        return None, {"error": state["note"], "status": "pending"}
+    if state.get("warnings"):
+        return None, {"error": f"imported squad can't be planned: {'; '.join(state['warnings'])}"}
+    codes = [int(p["code"]) for p in state["squad"]]
+    pool = store.players[store.players["code"].isin(codes)]
+    if len(pool) != 15:
+        missing = set(codes) - {int(c) for c in pool["code"]}
+        names = [p["player"] for p in state["squad"] if p["code"] in missing]
+        return None, {"error": f"imported players not in the engine's pool: {names}"}
+    return {
+        "state": state,
+        "squad_df": pool,
+        "own": {int(p["code"]): int(p["selling_price"]) for p in state["squad"]},
+        "bank": state["bank"] / 10.0,
+        "free_transfers": int(state["free_transfers"]),
+    }, None
+
+
+def _import_note(state: dict) -> str:
+    return (
+        f"planned from imported FPL team {state['team_id']} (“{state['team_name']}”): "
+        f"bank £{state['bank'] / 10:.1f}m, {state['free_transfers']} free transfer(s), "
+        "real sell prices from purchase history"
+    )
+
+
 def _gw_projections(store: LiveStore, horizon: int | None = None) -> pd.DataFrame:
     proj = store.per_gw.merge(store.players[["code", "price", "p_play"]], on="code", how="left")
     proj = proj[["code", "player", "team", "position", "price", "gw", "xpts", "p_play"]]
@@ -359,24 +429,36 @@ def _gw_projections(store: LiveStore, horizon: int | None = None) -> pd.DataFram
 
 
 def plan_transfers(
-    players: list[str],
+    players: list[str] | None = None,
     bank: float = 0.0,
     free_transfers: int = 1,
     horizon: int | None = None,
     alternatives: int = 1,
+    team_id: int | None = None,
 ) -> dict:
     """Multi-GW transfer plan (MILP): which moves, when, hits vs. banking FTs.
 
-    ``players``: the current 15. ``bank`` in £m. Sell prices are current
-    prices (no purchase-price history until real team import lands).
+    Either ``team_id`` (imported live state: real squad, bank, FTs, and sell
+    prices from purchase history) or ``players`` (the current 15 by name;
+    ``bank`` in £m; sell prices assumed = current prices).
     """
     store = get_store()
-    squad_df, err = _resolve_squad(store, players)
-    if err:
-        return err
+    import_note = None
+    if team_id is not None:
+        inputs, err = _team_inputs(store, team_id)
+        if err:
+            return err
+        own, bank, free_transfers = inputs["own"], inputs["bank"], inputs["free_transfers"]
+        import_note = _import_note(inputs["state"])
+    else:
+        if not players:
+            return {"error": "provide either the 15 players or a team_id to import"}
+        squad_df, err = _resolve_squad(store, players)
+        if err:
+            return err
+        own = {int(r.code): int(r.price) for r in squad_df.itertuples()}
 
     proj = _gw_projections(store, horizon)
-    own = {int(r.code): int(r.price) for r in squad_df.itertuples()}
 
     plan = optimize_transfers(
         proj, own, bank=int(round(bank * 10)), free_transfers=free_transfers, time_limit=10.0
@@ -424,11 +506,16 @@ def plan_transfers(
     if alts:
         out["alternatives"] = alts
 
+    notes = []
+    if import_note:
+        notes.append(import_note)
     if store.provenance["gw_window"][0] == 1:
-        out["note"] = (
+        notes.append(
             "pre-season: transfers are unlimited until the GW1 deadline, so this is "
             "a preview that treats the draft as locked from GW1"
         )
+    if notes:
+        out["note"] = "; ".join(notes)
     out["provenance"] = store.provenance
     return out
 
@@ -482,25 +569,44 @@ CHIP_LABELS = {
 
 
 def chip_advice(
-    players: list[str],
+    players: list[str] | None = None,
     bank: float = 0.0,
     free_transfers: int = 1,
     chips: list[str] | None = None,
+    team_id: int | None = None,
 ) -> dict:
     """Per-chip expected value across the projection window, on top of the
-    transfer plan's trajectory. ``chips`` limits to the ones still in hand
-    (default: all four)."""
+    transfer plan's trajectory. ``team_id`` imports the live squad/bank/FTs
+    and restricts to the chips actually still in hand; otherwise ``players``
+    names the 15 and ``chips`` limits the set (default: all four)."""
     store = get_store()
-    squad_df, err = _resolve_squad(store, players)
-    if err:
-        return err
+    import_note = None
+    if team_id is not None:
+        inputs, err = _team_inputs(store, team_id)
+        if err:
+            return err
+        own, bank, free_transfers = inputs["own"], inputs["bank"], inputs["free_transfers"]
+        if not chips:
+            chips = inputs["state"]["chips_available"]
+        import_note = _import_note(inputs["state"])
+        if not chips:
+            return {
+                "error": "no chips left to play this half-season",
+                "chips_played": inputs["state"]["chips_played"],
+            }
+    else:
+        if not players:
+            return {"error": "provide either the 15 players or a team_id to import"}
+        squad_df, err = _resolve_squad(store, players)
+        if err:
+            return err
+        own = {int(r.code): int(r.price) for r in squad_df.itertuples()}
     wanted = tuple(chips) if chips else CHIPS
     unknown = [c for c in wanted if c not in CHIPS]
     if unknown:
         return {"error": f"unknown chips {unknown}; valid: {list(CHIPS)}"}
 
     proj = _gw_projections(store)
-    own = {int(r.code): int(r.price) for r in squad_df.itertuples()}
     advice = advise_chips(
         proj, own, bank=int(round(bank * 10)), free_transfers=free_transfers,
         chips=wanted, time_limit=8.0,
@@ -523,6 +629,8 @@ def chip_advice(
         f"(GW{gws[0]}-{gws[-1]}); stronger chip weeks (blanks/doubles) may exist "
         "beyond it, so a low number means 'no standout week visible', not 'never play it'"
     )
+    if import_note:
+        out["note"] = f"{import_note}; {out['note']}"
     if store.provenance["gw_window"][0] == 1:
         out["note"] += "; chips cannot be played before GW1"
     out["provenance"] = store.provenance

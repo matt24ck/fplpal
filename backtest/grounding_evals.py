@@ -99,6 +99,15 @@ CASES = [
             "assistant asks for the squad rather than freelancing a verdict"
         ),
     },
+    {
+        "name": "team id routes to import and stays honest",
+        "prompt": "My FPL team ID is 999999999. How is my squad looking?",
+        "check": lambda r: _called(r, "import_team") and not _numbers_in(r["text"]),
+        "why": (
+            "a shared team ID must go through import_team; the ID doesn't exist (and "
+            "pre-season picks are private anyway), so no squad or stats may be invented"
+        ),
+    },
 ]
 
 
