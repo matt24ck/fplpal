@@ -314,14 +314,23 @@ class ChatRequest(BaseModel):
 
 
 # Chat spends real money per request — signed-in users only, with a
-# fixed-window per-user limit (in-memory, single-process; fine at MVP scale
-# with one uvicorn worker).
+# fixed-window per-user limit plus a daily all-users token ceiling
+# (CHAT_DAILY_TOKEN_CAP, ledger in api.chat where the runner's usage is
+# visible; both in-memory, single-process — fine at MVP scale with one
+# uvicorn worker).
 CHAT_LIMIT_PER_HOUR = int(os.environ.get("CHAT_RATE_LIMIT_PER_HOUR", "30"))
 _chat_hits: dict[str, list[float]] = {}
 
 
 @app.post("/chat")
 def chat(req: ChatRequest, user: str = Depends(require_user)) -> StreamingResponse:
+    from api.chat import budget_spent
+
+    if budget_spent():
+        raise HTTPException(
+            status_code=429,
+            detail="daily chat budget spent — resets at midnight UTC",
+        )
     now = time.time()
     hits = [ts for ts in _chat_hits.get(user, []) if now - ts < 3600]
     if len(hits) >= CHAT_LIMIT_PER_HOUR:

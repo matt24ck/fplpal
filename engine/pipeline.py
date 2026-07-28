@@ -11,9 +11,13 @@ Flow per refresh:
 
 1. Latest ``bootstrap_static`` + ``fixtures`` snapshots -> future rows for the
    next ``horizon`` gameweeks (one row per player per fixture).
-2. Minutes and event-rate models fit on the full historical archive; features
-   for future rows are computed one GW at a time (concat history + that GW
-   only), so phantom future rows never contaminate each other's history.
+2. Minutes and event-rate models fit on the full historical archive — which,
+   in season, includes the live season's finished fixtures appended by
+   ``engine.ingest.played_gw`` — so the models retrain on current form.
+   Features for future rows are computed one GW at a time (concat history +
+   that GW only), so phantom future rows never contaminate each other's
+   history, and each GW's frame keeps only that GW's future fixtures so
+   played live-season rows never leak into the projection output.
 3. Live status flags overlay minutes multiplicatively (``chance_of_playing``;
    injured/suspended -> 0, doubtful default 75%).
 4. Team strength fits on all history; live team names that drifted from the
@@ -42,6 +46,7 @@ import pandas as pd
 from engine.config.season import ELEMENT_TYPE_TO_POSITION, load_season
 from engine.features.historical_gw import FLOAT_COLS, INT_COLS, NULLABLE_INT_COLS
 from engine.features.matches import load_matches
+from engine.ingest.played_gw import LIVE_SEASON, TEAM_ALIASES
 from engine.ingest.snapshot import latest_snapshot
 from engine.models.event_rates import EventRatesModel
 from engine.models.minutes import MinutesModel, build_minutes_dataset
@@ -60,9 +65,9 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 LIVE_DIR = REPO_ROOT / "data" / "live"
 WEIGHTS_PATH = REPO_ROOT / "data" / "models" / "ratings_weights.json"
 
-LIVE_SEASON = "2026-27"
-# Live API name -> name used in the historical archive.
-TEAM_ALIASES = {"Ipswich Town": "Ipswich", "Hull City": "Hull"}
+# LIVE_SEASON and TEAM_ALIASES live in engine.ingest.played_gw (the season-
+# lifecycle owner) — re-exported here for existing importers.
+__all__ = ["LIVE_SEASON", "TEAM_ALIASES", "build_future_rows", "build_live_projections"]
 
 
 def build_future_rows(
@@ -197,15 +202,22 @@ def build_live_projections(
 
     parts = []
     for g in gws:
-        pg_g = pd.concat([hist, future[future["gw"] == g]], ignore_index=True)
+        fut_g = future[future["gw"] == g]
+        fut_fixtures = set(fut_g["fixture"])
+        pg_g = pd.concat([hist, fut_g], ignore_index=True)
         md = build_minutes_dataset(pg_g)
-        rows_m = md[md["season"] == season]
+        # Once played-GW ingest appends live-season rows to the archive,
+        # season == live no longer means "future" — select this GW's future
+        # fixtures explicitly so played rows never enter the projection frame.
+        rows_m = md[(md["season"] == season) & md["fixture"].isin(fut_fixtures)]
         mp = MinutesModel.apply_availability(
             mm.predict(rows_m), rows_m["element"].map(avail).to_numpy(dtype=float)
         )
         minutes_df = rows_m[["season", "fixture", "element"]].join(mp)
         rates_g = rm.transform(pg_g)
-        base = rates_g.loc[rates_g["season"] == season, ASSEMBLY_COLS]
+        base = rates_g.loc[
+            (rates_g["season"] == season) & rates_g["fixture"].isin(fut_fixtures), ASSEMBLY_COLS
+        ]
         parts.append(base.merge(minutes_df, on=["season", "fixture", "element"], how="inner"))
         print(f"  GW{g}: {len(parts[-1]):,} player-fixture rows")
 

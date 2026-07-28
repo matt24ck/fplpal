@@ -17,7 +17,9 @@ login`` profile).
 from __future__ import annotations
 
 import json
+import os
 from collections.abc import Iterator
+from datetime import UTC, datetime
 from pathlib import Path
 
 import anthropic
@@ -33,6 +35,54 @@ load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
 MODEL = "claude-sonnet-5"  # PLAN §6: orchestrator only — the engine does the math
 MAX_TOKENS = 4096
+
+# --- daily spend ceiling across ALL users (PLAN §10) -----------------------
+# In-memory, single-process, like the per-user rate limit in api.app — fine at
+# MVP scale with one uvicorn worker. Every token the tool runner reports
+# (input, output, cache writes and reads) counts against CHAT_DAILY_TOKEN_CAP;
+# the ledger holds only the current UTC day, so the cap resets at midnight.
+_daily_tokens: dict[str, int] = {}
+
+
+def _today() -> str:
+    return datetime.now(UTC).strftime("%Y-%m-%d")
+
+
+def daily_cap() -> int | None:
+    """CHAT_DAILY_TOKEN_CAP, or None when unset (no ceiling). A value that
+    doesn't parse fails closed — a typo'd cap must not mean unlimited spend."""
+    raw = os.environ.get("CHAT_DAILY_TOKEN_CAP", "").strip()
+    if not raw:
+        return None
+    try:
+        return max(int(raw), 0)
+    except ValueError:
+        return 0
+
+
+def tokens_spent_today() -> int:
+    return _daily_tokens.get(_today(), 0)
+
+
+def budget_spent() -> bool:
+    cap = daily_cap()
+    return cap is not None and tokens_spent_today() >= cap
+
+
+def record_usage(usage: object) -> None:
+    total = sum(
+        int(getattr(usage, field, 0) or 0)
+        for field in (
+            "input_tokens",
+            "output_tokens",
+            "cache_creation_input_tokens",
+            "cache_read_input_tokens",
+        )
+    )
+    day = _today()
+    for stale in [k for k in _daily_tokens if k != day]:
+        del _daily_tokens[stale]
+    _daily_tokens[day] = _daily_tokens.get(day, 0) + total
 
 
 def _json(payload: dict) -> str:
@@ -256,6 +306,7 @@ def chat_stream(messages: list[dict]) -> Iterator[str]:
                 if event.type == "content_block_delta" and event.delta.type == "text_delta":
                     yield sse("text", {"delta": event.delta.text})
             final = stream.get_final_message()
+            record_usage(final.usage)
             for block in final.content:
                 if block.type == "tool_use":
                     yield sse(
@@ -289,6 +340,7 @@ def run_chat(messages: list[dict]) -> dict:
     tool_calls: list[dict] = []
     text = ""
     for message in runner:
+        record_usage(message.usage)
         text = "".join(b.text for b in message.content if b.type == "text")
         tool_calls += [
             {"name": b.name, "input": b.input} for b in message.content if b.type == "tool_use"
