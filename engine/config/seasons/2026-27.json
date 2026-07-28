@@ -1,6 +1,6 @@
 {
   "season": "2026-27",
-  "verified_against_game": false,
+  "verified_against_game": true,
   "notes": "Baseline copied from the 2025/26 ruleset. Every value must be verified against the live 2026/27 game before GW1; flip verified_against_game to true once checked.",
   "squad": {
     "size": 15,
