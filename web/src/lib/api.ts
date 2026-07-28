@@ -1,4 +1,6 @@
 import type {
+  AccuracyData,
+  AccuracyGwDetail,
   ChatEvent,
   ChipAdviceResponse,
   ExplorerData,
@@ -66,6 +68,8 @@ export const api = {
   meta: () => get<Meta>("/meta"),
   explorer: () => get<ExplorerData>("/explorer"),
   fixturesMatrix: () => get<MatrixData>("/fixtures-matrix"),
+  accuracy: () => get<AccuracyData>("/accuracy"),
+  accuracyGw: (gw: number) => get<AccuracyGwDetail>(`/accuracy/${gw}`),
   projections: (players: string[]) =>
     post<ProjectionsResponse>("/projections", { players }),
   rating: (query: string) =>

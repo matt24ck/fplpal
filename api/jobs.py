@@ -55,12 +55,28 @@ def played_gw_job() -> None:
     from engine.ingest.played_gw import ingest
 
     ingest()
+    # Rescore accuracy from the frozen files (cheap, idempotent) — the night a
+    # GW finishes, its report appears; other nights this is a fast no-op.
+    try:
+        from engine.accuracy import score_accuracy
+
+        score_accuracy()
+    except Exception:
+        log.exception("jobs: accuracy scoring failed — ingest itself succeeded")
 
 
 def pipeline_job() -> None:
     from engine.pipeline import build_live_projections
 
     build_live_projections()
+    # Freeze the fresh projections for every GW whose deadline is still ahead;
+    # the last pre-deadline freeze is what the accuracy page scores against.
+    try:
+        from engine.accuracy import freeze_projections
+
+        freeze_projections()
+    except Exception:
+        log.exception("jobs: projection freeze failed — pipeline output still serves")
     from api.data import get_store
 
     try:

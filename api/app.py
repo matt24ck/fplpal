@@ -294,6 +294,71 @@ def team_state(team_id: int) -> dict:
     return _ok(fetch_team_state(team_id, rules.chips.first_half_deadline_gw))
 
 
+# --- live accuracy (public credibility surface) ----------------------------
+
+
+@app.get("/accuracy")
+def accuracy() -> dict:
+    """The accuracy report: deadline-frozen projections scored against
+    realized points per finished GW, plus pending freezes. Public — the whole
+    point is that anyone can check the model's track record."""
+    import json
+
+    from engine.accuracy import report_path
+    from engine.ingest.played_gw import LIVE_SEASON
+
+    path = report_path()
+    if not path.exists():
+        return {
+            "available": False,
+            "season": LIVE_SEASON,
+            "gws": [],
+            "pending": [],
+            "aggregate": None,
+        }
+    return {"available": True, **json.loads(path.read_text(encoding="utf-8"))}
+
+
+@app.get("/accuracy/{gw}")
+def accuracy_gw(gw: int) -> dict:
+    """Player-level projected-vs-realized rows for one scored GW (the
+    accuracy page's scatter)."""
+    import pandas as pd
+
+    from engine.accuracy import detail_path
+
+    path = detail_path()
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="no scored gameweeks yet")
+    d = pd.read_parquet(path)
+    d = d[d["gw"] == gw]
+    if d.empty:
+        raise HTTPException(status_code=404, detail=f"GW{gw} is not scored yet")
+
+    def _f(x, nd=2):
+        return None if pd.isna(x) else round(float(x), nd)
+
+    return {
+        "gw": gw,
+        "players": [
+            {
+                "code": int(r.code),
+                "player": r.player,
+                "team": r.team,
+                "position": r.position,
+                "price": int(r.price),
+                "n_fixtures": int(r.n_fixtures),
+                "xpts": _f(r.xpts),
+                "total_points": int(r.total_points),
+                "minutes": int(r.minutes),
+                "ep_next": _f(r.ep_next),
+                "form4": _f(r.form4),
+            }
+            for r in d.itertuples()
+        ],
+    }
+
+
 # --- per-user state (cross-device draft/team-id sync) ---------------------
 
 

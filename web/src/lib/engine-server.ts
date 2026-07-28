@@ -42,6 +42,7 @@ const ENGINE_QUERIES = {
   meta: { queryKey: ["meta"], path: "/meta" },
   explorer: { queryKey: ["explorer"], path: "/explorer" },
   fixturesMatrix: { queryKey: ["fixtures-matrix"], path: "/fixtures-matrix" },
+  accuracy: { queryKey: ["accuracy"], path: "/accuracy" },
 } as const;
 
 /** Fetch the named queries and return a dehydrated cache for

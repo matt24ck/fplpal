@@ -14,6 +14,19 @@ export const useExplorer = () =>
 export const useFixturesMatrix = () =>
   useQuery({ queryKey: ["fixtures-matrix"], queryFn: api.fixturesMatrix });
 
+export const useAccuracy = () =>
+  useQuery({ queryKey: ["accuracy"], queryFn: api.accuracy });
+
+/** Player-level projected-vs-realized rows for one scored GW. */
+export const useAccuracyGw = (gw: number | null) =>
+  useQuery({
+    queryKey: ["accuracy-gw", gw],
+    queryFn: () => api.accuracyGw(gw!),
+    enabled: gw !== null,
+    staleTime: 5 * 60_000,
+    retry: false, // an unscored GW 404s — nothing to hammer
+  });
+
 export const usePlayerProjection = (player: string | null) =>
   useQuery({
     queryKey: ["projection", player],

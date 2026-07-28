@@ -15,6 +15,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     route("/players", "hourly", 0.9),
     route("/fixtures", "daily", 0.8),
     route("/builder", "weekly", 0.7),
+    route("/accuracy", "daily", 0.7),
     route("/planner", "weekly", 0.6),
     route("/about", "monthly", 0.5),
     route("/chat", "monthly", 0.3),

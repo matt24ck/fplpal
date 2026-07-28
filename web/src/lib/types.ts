@@ -217,6 +217,93 @@ export interface TeamState {
   warnings?: string[];
 }
 
+/** Live accuracy report (GET /accuracy) — the credibility surface. Frozen
+ * at each GW deadline, scored once the GW is finished and data-checked. */
+export interface AccuracyMetrics {
+  rmse: number | null;
+  mae: number | null;
+  rank_corr: number | null; // within-position Spearman, players who played
+  top10_overlap: number | null;
+}
+
+export interface AccuracyCaptainPick {
+  player: string;
+  points: number; // realized points of that pick
+}
+
+export interface AccuracyGwEntry {
+  gw: number;
+  deadline_time: string;
+  frozen_at: string;
+  data_snapshot: string;
+  fixtures_frozen: number;
+  fixtures_scored: number; // < frozen when fixtures were postponed out
+  players: number;
+  played: number;
+  model: AccuracyMetrics;
+  ep_next: AccuracyMetrics; // FPL's own projection, frozen at the deadline
+  form4: AccuracyMetrics; // naive last-4-fixture form baseline
+  captain: {
+    model: AccuracyCaptainPick | null;
+    ep_next: AccuracyCaptainPick | null;
+    hindsight: AccuracyCaptainPick | null;
+  };
+  xpts_total_ratio: number | null; // >1 = projected more than reality paid
+  cs_brier: number | null;
+  start_brier: number | null;
+}
+
+export interface AccuracyPending {
+  gw: number;
+  deadline_time: string;
+  frozen_at: string;
+  players: number;
+  fixtures: number;
+}
+
+export interface AccuracyAggregate {
+  gws_scored: number;
+  model: AccuracyMetrics;
+  ep_next: AccuracyMetrics;
+  beat_ep_next_rank_corr: { gws: number; of: number };
+  captain_pts_per_gw: {
+    model: number | null;
+    ep_next: number | null;
+    hindsight: number | null;
+  };
+  cs_brier: number | null;
+  xpts_total_ratio: number | null;
+}
+
+export interface AccuracyData {
+  available: boolean;
+  season: string;
+  scored_at?: string;
+  gws: AccuracyGwEntry[];
+  pending: AccuracyPending[];
+  aggregate: AccuracyAggregate | null;
+}
+
+/** Player-level rows for one scored GW (GET /accuracy/{gw}). */
+export interface AccuracyPlayerRow {
+  code: number;
+  player: string;
+  team: string;
+  position: Position;
+  price: number; // tenths of £m
+  n_fixtures: number;
+  xpts: number | null;
+  total_points: number;
+  minutes: number;
+  ep_next: number | null;
+  form4: number | null;
+}
+
+export interface AccuracyGwDetail {
+  gw: number;
+  players: AccuracyPlayerRow[];
+}
+
 /** Chat stream events (api/chat.py SSE). */
 export type ChatEvent =
   | { event: "text"; data: { delta: string } }
