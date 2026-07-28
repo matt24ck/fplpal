@@ -1,0 +1,50 @@
+{
+  "season": "2023-24",
+  "verified_against_game": true,
+  "notes": "Historical ruleset for backtesting. Classic scoring — defensive contribution did not exist (points 0; thresholds kept so the rates model stays well-formed). Chips: two wildcards (one per half), one each of the rest.",
+  "squad": {
+    "size": 15,
+    "budget": 1000,
+    "positions": { "GKP": 2, "DEF": 5, "MID": 5, "FWD": 3 },
+    "max_per_club": 3,
+    "formation": {
+      "GKP": [1, 1],
+      "DEF": [3, 5],
+      "MID": [2, 5],
+      "FWD": [1, 3]
+    }
+  },
+  "transfers": {
+    "free_per_gw": 1,
+    "max_banked": 2,
+    "hit_cost": 4
+  },
+  "scoring": {
+    "appearance_short": 1,
+    "appearance_60": 2,
+    "goal": { "GKP": 6, "DEF": 6, "MID": 5, "FWD": 4 },
+    "assist": 3,
+    "clean_sheet": { "GKP": 4, "DEF": 4, "MID": 1, "FWD": 0 },
+    "goals_conceded_per_2": { "GKP": -1, "DEF": -1, "MID": 0, "FWD": 0 },
+    "saves_per_3": 1,
+    "penalty_save": 5,
+    "penalty_miss": -2,
+    "defensive_contribution": {
+      "points": 0,
+      "threshold": { "DEF": 10, "MID": 12, "FWD": 12 },
+      "def_counts": "not scored this season",
+      "mid_fwd_counts": "not scored this season"
+    },
+    "yellow_card": -1,
+    "red_card": -3,
+    "own_goal": -2,
+    "bonus": [3, 2, 1]
+  },
+  "chips": {
+    "wildcard": { "count": 2, "halves": true },
+    "freehit": { "count": 1, "halves": false },
+    "bboost": { "count": 1, "halves": false },
+    "triple_captain": { "count": 1, "halves": false },
+    "first_half_deadline_gw": 20
+  }
+}

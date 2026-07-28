@@ -57,7 +57,12 @@ from engine.config.season import load_season
 REPO_ROOT = Path(__file__).resolve().parents[2]
 PLAYER_GW_PATH = REPO_ROOT / "data" / "features" / "player_gw.parquet"
 
-RATE_HALF_LIFE_DAYS = 270.0  # ~a season; recent form vs career trait balance
+# Tuned by the multi-season harness (backtest/harness.py, BUILDLOG §28): the
+# 120/180/270/365 sweep left distribution metrics unchanged but 180 tracked
+# player decline better where it costs real points — captain quality 6.84 vs
+# 6.42 pts/GW across 2023-26, and 6.11 vs 5.42 in 2025-26, the documented
+# Salah-decay season.
+RATE_HALF_LIFE_DAYS = 180.0
 _EPOCH = pd.Timestamp("2016-01-01", tz="UTC")
 
 # Shrinkage strength per stat, in effective 90s (fin in xG units). Starting
