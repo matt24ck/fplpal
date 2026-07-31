@@ -82,7 +82,7 @@ def _pull_all(root: Path | None) -> dict[str, Any]:
             notes = api.set_piece_notes()
             path = save_snapshot("set_piece_notes", notes, root)
             print(f"archived {path}")
-        except Exception as exc:  # non-critical endpoint; don't fail the job
+        except Exception as exc:  # noqa: BLE001 — non-critical endpoint; don't fail the job
             print(f"set-piece notes unavailable: {exc}")
 
     _print_summary(bootstrap, fixtures)

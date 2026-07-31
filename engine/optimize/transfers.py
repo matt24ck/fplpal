@@ -93,9 +93,11 @@ class TransferPlan:
 
     def summary(self) -> str:
         lines = [
-            f"plan over GW{self.steps[0].gw}-{self.steps[-1].gw} | "
-            f"expected {self.xpts_total:.1f} pts vs {self.baseline_xpts:.1f} holding "
-            f"({self.gain:+.1f}) | solved in {self.solve_seconds:.1f}s"
+            (
+                f"plan over GW{self.steps[0].gw}-{self.steps[-1].gw} | "
+                f"expected {self.xpts_total:.1f} pts vs {self.baseline_xpts:.1f} holding "
+                f"({self.gain:+.1f}) | solved in {self.solve_seconds:.1f}s"
+            )
         ]
         for s in self.steps:
             if s.moves:
@@ -324,7 +326,7 @@ def optimize_transfers(
                 hits=h,
                 ft_before=cur_ft,
                 ft_after=ft_after,
-                bank_after=int(round(bk[t].value())),
+                bank_after=round(bk[t].value()),
                 xpts_xi=xpts_xi,
                 squad=sq_df,
             )
@@ -397,7 +399,7 @@ def _hold_xpts(proj: pd.DataFrame, own: dict[int, int], gws, rules: SeasonRules)
 def _solver(time_limit: float | None):
     try:
         return pulp.HiGHS(msg=False, timeLimit=time_limit)
-    except Exception:
+    except Exception:  # noqa: BLE001 — any HiGHS init failure falls back to CBC
         return pulp.PULP_CBC_CMD(msg=0, timeLimit=time_limit)
 
 

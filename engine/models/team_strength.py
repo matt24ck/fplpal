@@ -75,7 +75,7 @@ class TeamStrengthModel:
 
     # -- fitting -----------------------------------------------------------
 
-    def fit(self, matches: pd.DataFrame, as_of: pd.Timestamp | None = None) -> "TeamStrengthModel":
+    def fit(self, matches: pd.DataFrame, as_of: pd.Timestamp | None = None) -> TeamStrengthModel:
         """Fit on matches with kickoff strictly before ``as_of`` (default: all)."""
         m = matches.dropna(subset=["home_goals", "away_goals"]).copy()
         as_of = as_of if as_of is not None else m["kickoff_time"].max() + pd.Timedelta(days=1)

@@ -83,7 +83,7 @@ def projection_frame() -> pd.DataFrame:
                     "p_start": 0.9,
                     "data_snapshot": "20260820T020000Z",
                     "computed_at": "2026-08-20T02:05:00Z",
-                }  # fmt: skip
+                }
             )
     df = pd.DataFrame(rows)
     # GW2/GW3 windows: same pool, one fixture each, shifted ids
@@ -98,7 +98,7 @@ def projection_frame() -> pd.DataFrame:
 def realized_frame() -> pd.DataFrame:
     rows = []
     for el, (points, minutes) in GW1_ACTUALS.items():
-        code, pos, fixtures, _, _ = GW1_PLAYERS[el]
+        _code, _pos, fixtures, _, _ = GW1_PLAYERS[el]
         for fixture, pts_f, min_f in zip(fixtures[: len(points)], points, minutes):
             rows.append(
                 {
@@ -111,7 +111,7 @@ def realized_frame() -> pd.DataFrame:
                     "minutes": min_f,
                     "clean_sheets": 1 if el == 9 else 0,
                     "starts": 1 if min_f >= 60 else 0,
-                }  # fmt: skip
+                }
             )
     # GW2 realized for the same pool (fixture ids +100): points = element id,
     # so realized ranks vary and rank metrics stay defined
@@ -128,7 +128,7 @@ def realized_frame() -> pd.DataFrame:
                 "minutes": 90,
                 "clean_sheets": 0,
                 "starts": 1,
-            }  # fmt: skip
+            }
         )
     return pd.DataFrame(rows)
 

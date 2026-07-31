@@ -185,7 +185,7 @@ def window_projections(
                     "p_play": 0.0,
                     "decision_gw": g,
                     "n_fixtures": 0,
-                }  # fmt: skip
+                }
             )
         w = pd.concat([w, pd.DataFrame(rows)], ignore_index=True)
     return w

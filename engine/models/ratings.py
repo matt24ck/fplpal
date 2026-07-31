@@ -144,7 +144,7 @@ class RatingsModel:
     def __init__(self) -> None:
         self.weights_: dict[str, pd.Series] = {}
 
-    def fit(self, windows: pd.DataFrame) -> "RatingsModel":
+    def fit(self, windows: pd.DataFrame) -> RatingsModel:
         """Regress realized window points on sub-scores (pool players only)."""
         for pos, names in SUBSCORES.items():
             d = windows[

@@ -236,8 +236,8 @@ def _score_one(frozen: pd.DataFrame, realized: pd.DataFrame, pg_before: pd.DataF
         "data_snapshot": str(frozen["data_snapshot"].iloc[0]),
         "fixtures_frozen": int(frozen["fixture"].nunique()),
         "fixtures_scored": int(matched["fixture"].nunique()),
-        "players": int(len(players)),
-        "played": int(len(played)),
+        "players": len(players),
+        "played": len(played),
         "model": {
             "rmse": _round(_rmse(players["xpts"], players["total_points"])),
             "mae": _round(_mae(players["xpts"], players["total_points"])),

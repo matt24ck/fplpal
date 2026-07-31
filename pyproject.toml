@@ -25,7 +25,9 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0",
-    "ruff>=0.4",
+    # upper-bounded: CI installs fresh, and a ruff minor can promote new
+    # default rules overnight (0.16.1 broke a green tree) — bump deliberately
+    "ruff>=0.16,<0.17",
 ]
 
 [build-system]

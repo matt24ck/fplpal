@@ -186,8 +186,8 @@ def start_brier(proj: pd.DataFrame) -> float | None:
 def metric_suite(proj: pd.DataFrame) -> dict:
     played = proj[proj["minutes"] > 0]
     out = {
-        "rows": int(len(proj)),
-        "played_rows": int(len(played)),
+        "rows": len(proj),
+        "played_rows": len(played),
         "xpts_total_ratio": float(proj["xpts"].sum() / max(proj["total_points"].sum(), 1)),
         "rmse": {
             "model": _rmse(proj["xpts"], proj["total_points"]),

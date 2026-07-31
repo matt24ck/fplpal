@@ -20,7 +20,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
-from api import db, tools as t
+from api import db
+from api import tools as t
 from api.auth import require_user
 from api.data import get_store
 from api.jobs import jobs_enabled, start_background

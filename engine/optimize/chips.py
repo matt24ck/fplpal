@@ -150,7 +150,7 @@ def _wc_week(
     codes = list(scratch.squad["code"].astype(int))
     hold = _hold_over(projections, codes, rest, rules)
     ev = max(0.0, hold - plan_rest)
-    turnover = len(set(codes) - set(int(c) for c in squad))
+    turnover = len(set(codes) - {int(c) for c in squad})
     return ChipWeek(
         gw=g,
         ev=round(ev, 2),
@@ -193,7 +193,7 @@ def _hold_over(
             team=("team", "first"),
             position=("position", "first"),
             price=("price", "first"),
-        )  # fmt: skip
+        )
         .reindex(codes)
     )
     total = 0.0

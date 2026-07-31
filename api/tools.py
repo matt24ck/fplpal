@@ -364,7 +364,7 @@ def _resolve_squad(store: LiveStore, players: list[str]) -> tuple[pd.DataFrame |
     return squad_df, None
 
 
-def _fmt_m(tenths: int | float | None) -> str | None:
+def _fmt_m(tenths: float | None) -> str | None:
     return None if tenths is None else f"£{tenths / 10:.1f}m"
 
 
@@ -474,7 +474,7 @@ def plan_transfers(
     proj = _gw_projections(store, horizon)
 
     plan = optimize_transfers(
-        proj, own, bank=int(round(bank * 10)), free_transfers=free_transfers, time_limit=10.0
+        proj, own, bank=round(bank * 10), free_transfers=free_transfers, time_limit=10.0
     )
     out = _plan_payload(plan)
 
@@ -503,7 +503,7 @@ def plan_transfers(
     for label, kwargs in variants:
         try:
             alt = optimize_transfers(
-                proj, own, bank=int(round(bank * 10)), free_transfers=free_transfers,
+                proj, own, bank=round(bank * 10), free_transfers=free_transfers,
                 time_limit=8.0, **kwargs,
             )  # fmt: skip
         except RuntimeError:
@@ -621,7 +621,7 @@ def chip_advice(
 
     proj = _gw_projections(store)
     advice = advise_chips(
-        proj, own, bank=int(round(bank * 10)), free_transfers=free_transfers,
+        proj, own, bank=round(bank * 10), free_transfers=free_transfers,
         chips=wanted, time_limit=8.0,
     )  # fmt: skip
 

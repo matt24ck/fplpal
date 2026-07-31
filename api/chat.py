@@ -351,7 +351,7 @@ def chat_stream(messages: list[dict]) -> Iterator[str]:
                         pass
                     yield sse("tool_result", {"tool_use_id": blk["tool_use_id"], "result": payload})
         yield sse("done", {})
-    except Exception as e:  # missing credentials raise TypeError, not APIError —
+    except Exception as e:  # noqa: BLE001 — missing credentials raise TypeError, not APIError;
         # whatever happens, the UI must get an error event, not a dead stream
         yield sse("error", {"message": f"{type(e).__name__}: {getattr(e, 'message', str(e))}"})
 

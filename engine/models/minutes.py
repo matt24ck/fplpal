@@ -37,6 +37,7 @@ Run a 2025-26 holdout evaluation: ``python -m engine.models.minutes``
 
 from __future__ import annotations
 
+import itertools
 from pathlib import Path
 
 import lightgbm as lgb
@@ -92,19 +93,19 @@ FEATURES = [
 
 # Modest fixed capacity for all three models; tuning belongs to the backtest
 # harness, not this module.
-LGB_PARAMS = dict(
-    n_estimators=400,
-    learning_rate=0.05,
-    num_leaves=63,
-    min_child_samples=40,
-    colsample_bytree=0.9,
-    subsample=0.9,
-    subsample_freq=1,
-    reg_lambda=1.0,
-    random_state=7,
-    n_jobs=-1,
-    verbose=-1,
-)
+LGB_PARAMS = {
+    "n_estimators": 400,
+    "learning_rate": 0.05,
+    "num_leaves": 63,
+    "min_child_samples": 40,
+    "colsample_bytree": 0.9,
+    "subsample": 0.9,
+    "subsample_freq": 1,
+    "reg_lambda": 1.0,
+    "random_state": 7,
+    "n_jobs": -1,
+    "verbose": -1,
+}
 
 
 # -- dataset ---------------------------------------------------------------
@@ -198,7 +199,7 @@ def build_minutes_dataset(player_gw: pd.DataFrame | None = None) -> pd.DataFrame
         .reset_index()
     )
     season_list = sorted(pg["season"].unique())
-    per_season["season"] = per_season["season"].map(dict(zip(season_list[:-1], season_list[1:])))
+    per_season["season"] = per_season["season"].map(dict(itertools.pairwise(season_list)))
     per_season = per_season.dropna(subset=["season"])
     per_season["prev_minutes_share"] = per_season["_pmin"] / (38 * 90)
     per_season["prev_start_share"] = per_season["_pstarts"] / 38.0
@@ -235,7 +236,7 @@ class MinutesModel:
         self.cameo_minutes_: pd.Series | None = None
         self.cameo_default_: float = 20.0
 
-    def fit(self, data: pd.DataFrame) -> "MinutesModel":
+    def fit(self, data: pd.DataFrame) -> MinutesModel:
         train = data.dropna(subset=["y_class"])
         if train.empty:
             raise ValueError("no labeled rows (starts never recorded)")

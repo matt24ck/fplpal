@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import time
 from types import TracebackType
-from typing import Any
+from typing import Any, Self
 
 import httpx
 
@@ -102,7 +102,7 @@ class FplApi:
     def close(self) -> None:
         self._client.close()
 
-    def __enter__(self) -> "FplApi":
+    def __enter__(self) -> Self:
         return self
 
     def __exit__(

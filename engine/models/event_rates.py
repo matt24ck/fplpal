@@ -155,7 +155,7 @@ class EventRatesModel:
 
     # -- fitting -----------------------------------------------------------
 
-    def fit(self, pg_train: pd.DataFrame) -> "EventRatesModel":
+    def fit(self, pg_train: pd.DataFrame) -> EventRatesModel:
         """Learn priors, BPS model, and dispersion from raw training rows."""
         pg = self._prep(pg_train)
         played = pg[pg["minutes"] > 0].copy()

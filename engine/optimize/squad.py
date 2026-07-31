@@ -54,8 +54,10 @@ class SquadSolution:
 
     def summary(self) -> str:
         lines = [
-            f"formation {self.formation} | cost £{self.cost / 10:.1f}m | "
-            f"XI+captain xPts {self.xpts_xi:.1f} | solved in {self.solve_seconds * 1000:.0f}ms"
+            (
+                f"formation {self.formation} | cost £{self.cost / 10:.1f}m | "
+                f"XI+captain xPts {self.xpts_xi:.1f} | solved in {self.solve_seconds * 1000:.0f}ms"
+            )
         ]
         xi = self.squad[self.squad["in_xi"]].sort_values(
             ["position", "xpts"],
@@ -207,7 +209,7 @@ def _assign_bench_order(out: pd.DataFrame) -> pd.DataFrame:
 def _solver():
     try:
         return pulp.HiGHS(msg=False)
-    except Exception:
+    except Exception:  # noqa: BLE001 — any HiGHS init failure falls back to CBC
         return pulp.PULP_CBC_CMD(msg=0)
 
 
