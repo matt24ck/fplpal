@@ -20,6 +20,7 @@ import pandas as pd
 from api.data import LiveStore, get_store
 from engine.config.season import load_season
 from engine.ingest.team_state import fetch_team_state
+from engine.models.event_rates import data_basis
 from engine.models.points import COMPONENTS
 from engine.models.ratings import SUBSCORES
 from engine.optimize.chips import CHIPS, advise_chips
@@ -75,6 +76,9 @@ def _player_summary(store: LiveStore, row: pd.Series) -> dict:
         "price": f"£{row['price'] / 10:.1f}m",
         "xpts_next_gws": _r(row["xpts"]),
         "p_start_avg": _r(row["p_play"]),
+        # how much of the projection is observed PL data vs the position ×
+        # price-tier prior — surface it when it's prior-heavy (new signings)
+        "data_basis": data_basis(row.get("exposure_90")),
     }
     if rating is not None:
         out["rating"] = _r(rating["rating"], 0)
@@ -184,20 +188,28 @@ def rank_players(
     pool = pool.assign(value=pool["xpts"] / (pool["price"] / 10.0))
     key = {"xpts": "xpts", "rating": "rating", "value": "value"}.get(sort_by, "xpts")
     top = pool.nlargest(int(limit), key)
+
+    def _rank_row(r) -> dict:
+        d = {
+            "player": r.player,
+            "team": r.team,
+            "position": r.position,
+            "price": f"£{r.price / 10:.1f}m",
+            "xpts_next_gws": _r(r.xpts),
+            "rating": _r(r.rating, 0),
+            "xpts_per_million": _r(r.value),
+        }
+        # compact flag only when the projection is prior-heavy — keeps the
+        # ranking payload lean but stops a pure-prior new signing passing as
+        # an observed-data pick
+        basis = data_basis(r.exposure_90)
+        if basis["level"] in ("pure_prior", "mostly_prior"):
+            d["data_basis"] = basis["level"]
+        return d
+
     return {
         "ranked_by": key,
-        "players": [
-            {
-                "player": r.player,
-                "team": r.team,
-                "position": r.position,
-                "price": f"£{r.price / 10:.1f}m",
-                "xpts_next_gws": _r(r.xpts),
-                "rating": _r(r.rating, 0),
-                "xpts_per_million": _r(r.value),
-            }
-            for r in top.itertuples()
-        ],
+        "players": [_rank_row(r) for r in top.itertuples()],
         "provenance": store.provenance,
     }
 
@@ -242,6 +254,7 @@ def explain_rating(query: str) -> dict:
         "position": pos,
         "rating": _r(rating["rating"], 0),
         "sub_scores": subs,
+        "data_basis": data_basis(row.get("exposure_90")),
         "note": (
             "sub-scores are percentiles (0-100) within position over the projection "
             "window; the headline rating is a weighted blend with weights fitted "

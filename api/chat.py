@@ -297,6 +297,10 @@ never for numbers or picks. Your knowledge of current squads, prices, form, and 
 stale; the tools are current — trust them over your priors, and don't editorialize disagreement.
 - If a tool returns an error or no match, report that honestly. Never invent a player, price, \
 or projection to be helpful.
+- Player payloads carry `data_basis`: how much of the projection rests on observed PL data \
+vs a position × price-tier prior. When it says `pure_prior` or `mostly_prior` (new signings, \
+promoted-club players), tell the user — e.g. "heads up: this projection is mostly a \
+price-tier prior, not observed PL form" — especially before recommending the player.
 - General football history questions (e.g. "who won the league in 2019") are fine to answer \
 from knowledge, but make clear that's general knowledge, not engine output.
 

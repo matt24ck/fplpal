@@ -31,6 +31,17 @@ export interface FixtureCell {
   difficulty: number; // net expected goals against; 0 = even, positive = harder
 }
 
+/** Prior-vs-observed provenance: how much of a projection is observed PL
+ * data vs the position × price-tier prior (engine.models.event_rates). */
+export type BasisLevel = "pure_prior" | "mostly_prior" | "mixed" | "observed";
+
+export interface DataBasis {
+  level: BasisLevel;
+  effective_90s: number; // time-decayed 90s of PL observation
+  prior_weight?: number; // exact shrinkage blend k/(exposure+k)
+  note?: string;
+}
+
 export interface ExplorerPlayer {
   code: number;
   player: string;
@@ -42,6 +53,7 @@ export interface ExplorerPlayer {
   rating: number | null;
   sub_scores: Record<string, number | null>;
   gw_xpts: Record<string, number>;
+  data_basis: DataBasis;
 }
 
 export interface ExplorerData {
@@ -117,6 +129,7 @@ export interface RatingExplain {
   position: Position;
   rating: number;
   sub_scores: Record<string, number | null>;
+  data_basis?: DataBasis;
   note: string;
   strongest: string;
   weakest: string;

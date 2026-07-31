@@ -9,6 +9,7 @@ import { usePlayerProjection, useExplorer } from "@/lib/hooks";
 import { SUBSCORES, price, pts } from "@/lib/format";
 import { assignSlugs } from "@/lib/slug";
 import type { ExplorerPlayer } from "@/lib/types";
+import { BasisBadge } from "./BasisBadge";
 import { Shirt } from "./Shirt";
 import { DecompositionChart, FixtureTickerStrip, RatingDial, SubScoreBars } from "./viz";
 
@@ -58,6 +59,7 @@ export function PlayerDrawer({
                 {player.team} · {player.position} ·{" "}
                 <span className="font-mono">{price(player.price)}</span>
               </p>
+              <BasisBadge basis={player.data_basis} className="mt-1.5" />
               {profileHref && (
                 <Link href={profileHref} className="text-royal mt-1 inline-block text-xs font-medium">
                   Full profile page →

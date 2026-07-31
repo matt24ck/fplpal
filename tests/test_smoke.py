@@ -30,6 +30,27 @@ def test_played_ingest_covers_every_stat_column():
     assert set(HISTORY_FIELDS) == {*NULLABLE_INT_COLS, *INT_COLS, *FLOAT_COLS}
 
 
+def test_data_basis_tracks_the_shrinkage_math():
+    import numpy as np
+    import pytest
+
+    from engine.models.event_rates import DEFAULT_K, data_basis
+
+    k = DEFAULT_K["xg"]
+    for empty in (0.0, None, float("nan"), np.nan):
+        basis = data_basis(empty)
+        assert basis["level"] == "pure_prior" and basis["prior_weight"] == 1.0
+
+    thin = data_basis(4.0)
+    assert thin["level"] == "mostly_prior"
+    assert thin["prior_weight"] == pytest.approx(k / (4.0 + k), abs=0.005)
+    # exactly k effective 90s is the 50/50 blend — still labeled prior-heavy
+    assert data_basis(k)["level"] == "mostly_prior"
+    assert data_basis(20.0)["level"] == "mixed"  # w = 1/3
+    veteran = data_basis(60.0)  # w ≈ 0.14
+    assert veteran["level"] == "observed" and veteran["effective_90s"] == 60.0
+
+
 def test_pipeline_builds_future_rows_from_bootstrap():
     from engine.pipeline import build_future_rows
 

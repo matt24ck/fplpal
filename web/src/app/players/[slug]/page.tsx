@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { BasisBadge } from "@/components/BasisBadge";
 import { Shirt } from "@/components/Shirt";
 import {
   DecompositionChart,
@@ -157,6 +158,7 @@ export default async function PlayerPage({
             {" · "}
             <span className="font-mono">{price(p.price)}</span>
           </p>
+          <BasisBadge basis={p.data_basis} className="mt-2" />
         </div>
       </header>
 

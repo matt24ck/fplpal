@@ -132,6 +132,8 @@ def explorer() -> dict:
         code: {int(r.gw): round(float(r.xpts), 2) for r in grp.itertuples()}
         for code, grp in store.per_gw.groupby("code")
     }
+    from engine.models.event_rates import data_basis
+
     players = []
     for r in pool.itertuples():
         subs = {
@@ -140,6 +142,7 @@ def explorer() -> dict:
             else round(getattr(r, f"score_{name}"))
             for name in SUBSCORES.get(str(r.position), [])
         }
+        basis = data_basis(r.exposure_90)
         players.append(
             {
                 "code": int(r.code),
@@ -152,6 +155,7 @@ def explorer() -> dict:
                 "rating": None if np.isnan(r.rating) else round(float(r.rating)),
                 "sub_scores": subs,
                 "gw_xpts": gw_xpts.get(int(r.code), {}),
+                "data_basis": {"level": basis["level"], "effective_90s": basis["effective_90s"]},
             }
         )
     fx = store.proj.drop_duplicates(["team", "fixture"]).sort_values("gw")

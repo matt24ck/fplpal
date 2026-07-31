@@ -53,6 +53,9 @@ class LiveStore:
                 price=("price", "first"),
                 xpts=("xpts", "sum"),
                 p_play=("p_start", "mean"),
+                # decayed effective 90s of PL observation — feeds the
+                # prior-vs-observed provenance badge (event_rates.data_basis)
+                exposure_90=("exposure_90", "max"),
             )
         )
         self.teams = sorted(p["team"].unique())

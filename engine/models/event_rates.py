@@ -83,6 +83,41 @@ DEFAULT_K = {
 # Stats whose priors use position × price-tier cells; the rest use position.
 CELL_STATS = ("xg", "xa", "cbit", "cbirt", "saves")
 
+
+def data_basis(exposure_90: float | None) -> dict:
+    """Prior-vs-observed provenance for one player (TODO §3 badge).
+
+    ``prior_weight`` is the exact empirical-Bayes blend ``k / (exposure + k)``
+    at the attacking strength ``k = DEFAULT_K["xg"]`` — representative because
+    attacking rates carry most of an outfielder's xPts, and the per-stat k's
+    all sit in the same 6-15 band. ``effective_90s`` is the time-decayed
+    exposure of the always-available stat family, so a new signing (or a
+    promoted-club player — the archive has no Championship data) reads as
+    pure prior even mid-career.
+    """
+    e = 0.0 if exposure_90 is None or np.isnan(exposure_90) else max(float(exposure_90), 0.0)
+    k = DEFAULT_K["xg"]
+    w = k / (e + k)
+    if e == 0.0:
+        level = "pure_prior"
+        note = "no PL data in the archive — projection is entirely the position × price-tier prior"
+    elif w >= 0.5:
+        level = "mostly_prior"
+        note = "thin PL sample — projection leans mostly on the position × price-tier prior"
+    elif w >= 0.25:
+        level = "mixed"
+        note = "moderate PL sample — the prior still carries meaningful weight"
+    else:
+        level = "observed"
+        note = "rates predominantly from observed PL performance"
+    return {
+        "level": level,
+        "effective_90s": round(e, 1),
+        "prior_weight": round(w, 2),
+        "note": note,
+    }
+
+
 BPS_REG_FEATURES = [
     "goals_scored",
     "assists",

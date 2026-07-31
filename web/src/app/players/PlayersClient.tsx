@@ -7,6 +7,7 @@
 import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { BasisDot } from "@/components/BasisBadge";
 import { PageShell } from "@/components/PageShell";
 import { PlayerDrawer } from "@/components/PlayerDrawer";
 import { Shirt } from "@/components/Shirt";
@@ -178,7 +179,10 @@ function Explorer() {
             >
               <Shirt team={p.team} className="w-8 shrink-0" />
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-medium">{p.player}</span>
+                <span className="block truncate text-sm font-medium">
+                  {p.player}
+                  <BasisDot basis={p.data_basis} />
+                </span>
                 <span className="text-slate block text-xs">
                   {teamAbbrev(p.team)} · {price(p.price)}
                 </span>
@@ -238,7 +242,10 @@ function Explorer() {
                       >
                         {p.player}
                       </Link>
-                      <span className="text-slate text-xs">{teamAbbrev(p.team)}</span>
+                      <span className="text-slate text-xs">
+                        {teamAbbrev(p.team)}
+                        <BasisDot basis={p.data_basis} />
+                      </span>
                     </span>
                   </span>
                 </td>
