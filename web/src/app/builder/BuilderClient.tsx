@@ -230,7 +230,14 @@ function RateCard({ result, onDismiss }: { result: SquadSolution; onDismiss: () 
         </button>
       </div>
       <div className="mt-2 space-y-1.5">
-        <KV k="Best XI + captain" v={`${pts(result.xi_plus_captain_xpts)} pts`} strong />
+        {result.xi_plus_captain_xpts_this_gw != null && (
+          <KV
+            k={`Best XI + captain, GW${result.provenance.gw_window[0]}`}
+            v={`${pts(result.xi_plus_captain_xpts_this_gw)} pts`}
+            strong
+          />
+        )}
+        <KV k="XI + captain, whole window" v={`${pts(result.xi_plus_captain_xpts)} pts`} />
         <KV k="Formation" v={result.formation} />
         <KV k="Captain" v={captain ? captain.player : "—"} />
         <KV k="Draft cost" v={result.draft_cost ?? result.cost} />

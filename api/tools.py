@@ -331,13 +331,15 @@ def _solution_payload(store: LiveStore, sol) -> dict:
             "price": f"£{r.price / 10:.1f}m",
             "xpts": _r(r.xpts, 1),
         }
+        if hasattr(r, "xpts_next"):
+            d["xpts_this_gw"] = _r(r.xpts_next, 1)
         if r.is_captain:
             d["captain"] = True
         if r.is_vice:
             d["vice_captain"] = True
         return d
 
-    return {
+    out = {
         "formation": sol.formation,
         "cost": f"£{sol.cost / 10:.1f}m",
         "xi_plus_captain_xpts": _r(sol.xpts_xi, 1),
@@ -345,6 +347,14 @@ def _solution_payload(store: LiveStore, sol) -> dict:
         "bench_in_order": [fmt(r) for r in bench.itertuples()],
         "provenance": store.provenance,
     }
+    if sol.xpts_xi_next is not None:
+        out["xi_plus_captain_xpts_this_gw"] = _r(sol.xpts_xi_next, 1)
+        out["horizons"] = (
+            "the 15 and the captain are picked over the whole projection window "
+            "(xpts); the starting XI and bench order are picked for the upcoming "
+            "gameweek alone (xpts_this_gw)"
+        )
+    return out
 
 
 def _resolve_squad(store: LiveStore, players: list[str]) -> tuple[pd.DataFrame | None, dict | None]:

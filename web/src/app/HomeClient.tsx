@@ -37,7 +37,8 @@ type BoardPlayer = {
 };
 type BoardLineup = {
   formation: string;
-  xi_plus_captain_xpts?: number;
+  xi_plus_captain_xpts?: number; // over the projection window
+  xi_plus_captain_xpts_this_gw?: number; // upcoming GW only
   starting_xi: BoardPlayer[];
   bench_in_order: BoardPlayer[];
 };
@@ -67,7 +68,7 @@ function realLineup(
   const capExtra = xi.filter((p) => p.is_captain).reduce((s, p) => s + gwXp(p.player), 0);
   return {
     formation: `${counts.DEF}-${counts.MID}-${counts.FWD}`,
-    xi_plus_captain_xpts: Math.round((base + capExtra) * 10) / 10,
+    xi_plus_captain_xpts_this_gw: Math.round((base + capExtra) * 10) / 10,
     starting_xi: xi.map(toBoard),
     bench_in_order: bench.map(toBoard),
   };
@@ -107,6 +108,9 @@ export default function MyTeamPage() {
   const sol: BoardLineup | undefined = real
     ? realLineup(real, byName, firstGw)
     : lineup.data;
+  // The XI is picked for the upcoming GW, so the headline is that GW's points
+  // (older payloads only carry the window figure).
+  const projected = sol?.xi_plus_captain_xpts_this_gw ?? sol?.xi_plus_captain_xpts;
   const squadNames = real ? (real.squad ?? []).map((p) => p.player) : names;
   const toChip = (sp: {
     player: string;
@@ -208,8 +212,8 @@ export default function MyTeamPage() {
             )}
             {sol && (
               <span className="text-slate ml-auto font-mono text-sm">
-                XI + captain:{" "}
-                <strong className="text-ink">{pts(sol.xi_plus_captain_xpts)} pts</strong>
+                XI + captain, GW{firstGw ?? "…"}:{" "}
+                <strong className="text-ink">{pts(projected)} pts</strong>
               </span>
             )}
           </div>
@@ -231,7 +235,7 @@ export default function MyTeamPage() {
 
         <div className="w-full space-y-4 xl:w-72">
           <ThisWeek
-            projected={sol?.xi_plus_captain_xpts}
+            projected={projected}
             captain={sol?.starting_xi.find((p) => p.captain)?.player}
             formation={sol?.formation}
             flagged={flagged.map((f) => f.player)}
