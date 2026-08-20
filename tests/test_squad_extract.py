@@ -27,8 +27,18 @@ def synth_players() -> pd.DataFrame:
     for pos, n in _SPEC:
         for _ in range(n):
             code += 1
-            rows.append((code, f"{pos.title()} Player{code}", f"P{code}", f"Club{code}",
-                         pos, 40 + code, 20.0 + code, 2.0 + code / 10))
+            rows.append(
+                (
+                    code,
+                    f"{pos.title()} Player{code}",
+                    f"P{code}",
+                    f"Club{code}",
+                    pos,
+                    40 + code,
+                    20.0 + code,
+                    2.0 + code / 10,
+                )
+            )
     rows.append((20, "Twin One", "Twin", "ClubT1", "MID", 50, 9.0, 0.9))
     rows.append((21, "Twin Two", "Twin", "ClubT2", "MID", 50, 8.0, 0.8))
     return pd.DataFrame(
@@ -42,8 +52,10 @@ class FakeStore:
         self.players = synth_players()
         self.resolver = Resolver(self.players)
         self.provenance = {
-            "season": "2026-27", "gw_window": [1, 6],
-            "data_snapshot": "test", "computed_at": "2026-08-20T00:00:00+00:00",
+            "season": "2026-27",
+            "gw_window": [1, 6],
+            "data_snapshot": "test",
+            "computed_at": "2026-08-20T00:00:00+00:00",
         }
 
 

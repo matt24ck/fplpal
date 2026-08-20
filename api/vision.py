@@ -116,16 +116,18 @@ def extract_squad(image_b64: str, media_type: str) -> dict:
         max_tokens=MAX_TOKENS,
         tools=[EXTRACT_TOOL],
         tool_choice={"type": "tool", "name": "record_squad"},
-        messages=[{
-            "role": "user",
-            "content": [
-                {
-                    "type": "image",
-                    "source": {"type": "base64", "media_type": media_type, "data": image_b64},
-                },
-                {"type": "text", "text": PROMPT},
-            ],
-        }],
+        messages=[
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "image",
+                        "source": {"type": "base64", "media_type": media_type, "data": image_b64},
+                    },
+                    {"type": "text", "text": PROMPT},
+                ],
+            }
+        ],
     )
     record_usage(msg.usage)
     block = next((b for b in msg.content if b.type == "tool_use"), None)
@@ -165,19 +167,21 @@ def extract_and_resolve(store: LiveStore, image_b64: str, media_type: str) -> di
     for e in entries:
         res = store.resolver.resolve(e.get("name", ""), e.get("row"), e.get("team_hint"))
         match = res["match"]
-        players.append({
-            "shown": e.get("name", ""),
-            "row": e.get("row"),
-            "is_captain": bool(e.get("is_captain")),
-            "is_vice": bool(e.get("is_vice")),
-            "price_shown": e.get("price"),
-            "status": res["status"],
-            "method": res["method"],
-            "match": _fmt(match) if match else None,
-            "candidates": [_fmt(c) for c in res["candidates"]],
-            # resolver may have recovered from a mis-read row — surface it
-            "row_mismatch": bool(match) and e.get("row") != match["position"],
-        })
+        players.append(
+            {
+                "shown": e.get("name", ""),
+                "row": e.get("row"),
+                "is_captain": bool(e.get("is_captain")),
+                "is_vice": bool(e.get("is_vice")),
+                "price_shown": e.get("price"),
+                "status": res["status"],
+                "method": res["method"],
+                "match": _fmt(match) if match else None,
+                "candidates": [_fmt(c) for c in res["candidates"]],
+                # resolver may have recovered from a mis-read row — surface it
+                "row_mismatch": bool(match) and e.get("row") != match["position"],
+            }
+        )
 
     resolved = [p["match"] for p in players if p["status"] == "ok"]
     counts = {pos: sum(1 for m in resolved if m["position"] == pos) for pos in SQUAD_SHAPE}
@@ -187,18 +191,15 @@ def extract_and_resolve(store: LiveStore, image_b64: str, media_type: str) -> di
         names = ", ".join(m["web_name"] or m["player"] for m in resolved if m["code"] in dupes)
         warnings.append(f"the same player was read more than once: {names}")
     if len(entries) != 15:
-        warnings.append(f"expected 15 players, could read {len(entries)} — "
-                        "make sure the whole squad (including the bench) is in the shot")
+        warnings.append(
+            f"expected 15 players, could read {len(entries)} — "
+            "make sure the whole squad (including the bench) is in the shot"
+        )
     unresolved = [p["shown"] for p in players if p["status"] != "ok"]
     if unresolved:
         warnings.append("needs confirmation: " + ", ".join(unresolved))
 
-    complete = (
-        len(entries) == 15
-        and not unresolved
-        and not dupes
-        and counts == SQUAD_SHAPE
-    )
+    complete = len(entries) == 15 and not unresolved and not dupes and counts == SQUAD_SHAPE
     if not complete and counts != SQUAD_SHAPE and len(entries) == 15 and not unresolved:
         warnings.append(f"squad shape {counts} is not 2 GKP / 5 DEF / 5 MID / 3 FWD")
 

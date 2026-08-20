@@ -83,8 +83,13 @@ class Resolver:
                 ("web", lambda r: r["_web"] == q),
                 ("full", lambda r: r["_full"] == q),
                 ("token", lambda r: q in r["_full"].split() or q in r["_web"].split()),
-                ("prefix", lambda r: (truncated or len(q) >= PREFIX_MIN)
-                    and (r["_web"].startswith(q) or r["_full"].startswith(q))),
+                (
+                    "prefix",
+                    lambda r: (
+                        (truncated or len(q) >= PREFIX_MIN)
+                        and (r["_web"].startswith(q) or r["_full"].startswith(q))
+                    ),
+                ),
             ):
                 cands = [r for r in pool if hit(r)]
                 if cands:

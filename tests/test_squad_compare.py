@@ -23,10 +23,15 @@ def client(monkeypatch):
 
 
 def test_compare_two_squads(client):
-    r = client.post("/squad/compare", json={"squads": [
-        {"label": "Mine", "codes": SQUAD_CODES},
-        {"codes": VARIANT_CODES},  # label defaults to Team B
-    ]})
+    r = client.post(
+        "/squad/compare",
+        json={
+            "squads": [
+                {"label": "Mine", "codes": SQUAD_CODES},
+                {"codes": VARIANT_CODES},  # label defaults to Team B
+            ]
+        },
+    )
     assert r.status_code == 200
     body = r.json()
 
@@ -49,10 +54,15 @@ def test_compare_two_squads(client):
 
 
 def test_compare_identical_squads_has_no_differentials(client):
-    r = client.post("/squad/compare", json={"squads": [
-        {"label": "A", "codes": SQUAD_CODES},
-        {"label": "A", "codes": SQUAD_CODES},  # duplicate label gets suffixed too
-    ]})
+    r = client.post(
+        "/squad/compare",
+        json={
+            "squads": [
+                {"label": "A", "codes": SQUAD_CODES},
+                {"label": "A", "codes": SQUAD_CODES},  # duplicate label gets suffixed too
+            ]
+        },
+    )
     body = r.json()
     assert [s["label"] for s in body["squads"]] == ["A", "A (2)"]
     assert body["verdict"]["margin_xpts"] == 0
@@ -67,10 +77,12 @@ def test_compare_validates_squad_count_and_codes(client):
     five = {"squads": [{"codes": SQUAD_CODES}] * 5}
     assert client.post("/squad/compare", json=five).status_code == 422
 
-    bad = {"squads": [
-        {"label": "Good", "codes": SQUAD_CODES},
-        {"label": "Bad", "codes": [*SQUAD_CODES[:14], 999]},
-    ]}
+    bad = {
+        "squads": [
+            {"label": "Good", "codes": SQUAD_CODES},
+            {"label": "Bad", "codes": [*SQUAD_CODES[:14], 999]},
+        ]
+    }
     r = client.post("/squad/compare", json=bad)
     assert r.status_code == 404
     detail = str(r.json()["detail"])

@@ -25,9 +25,11 @@ POOL = [
 
 
 def _resolver() -> Resolver:
-    return Resolver(pd.DataFrame(
-        POOL, columns=["code", "player", "web_name", "team", "position", "price", "xpts"]
-    ))
+    return Resolver(
+        pd.DataFrame(
+            POOL, columns=["code", "player", "web_name", "team", "position", "price", "xpts"]
+        )
+    )
 
 
 def test_norm_folds_accents_case_and_punctuation():

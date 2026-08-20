@@ -384,14 +384,14 @@ def compare_squads(squads: list[dict]) -> dict:
     runner_up = ranked[1][2]
     return {
         "squads": [
-            {"label": label, "captain": _captain(payload), **payload}
-            for label, _, payload in rated
+            {"label": label, "captain": _captain(payload), **payload} for label, _, payload in rated
         ],
         "verdict": {
             "best": best_label,
             # margin over the runner-up on the horizon number the rate card leads with
-            "margin_xpts": _r(best_payload["xi_plus_captain_xpts"]
-                              - runner_up["xi_plus_captain_xpts"], 1),
+            "margin_xpts": _r(
+                best_payload["xi_plus_captain_xpts"] - runner_up["xi_plus_captain_xpts"], 1
+            ),
         },
         "shared": _by_xpts(shared),
         "differentials": differentials,
@@ -457,7 +457,9 @@ def _resolve_squad(store: LiveStore, players: list[str]) -> tuple[pd.DataFrame |
     return squad_df, None
 
 
-def _squad_from_codes(store: LiveStore, codes: list[int]) -> tuple[pd.DataFrame | None, dict | None]:
+def _squad_from_codes(
+    store: LiveStore, codes: list[int]
+) -> tuple[pd.DataFrame | None, dict | None]:
     """Resolve 15 stable FPL codes to rows; error payload if codes or shape are off."""
     if len(codes) != len(set(codes)):
         return None, {"error": "duplicate players in squad"}
