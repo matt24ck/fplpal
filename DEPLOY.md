@@ -96,9 +96,45 @@ run.
 3. Deploy. If the Vercel domain wasn't known when you set `CORS_ORIGINS` on
    Railway, update it now — chat is the only path that needs CORS.
 
+## 2.5 Monitoring — Sentry (errors) + UptimeRobot (uptime & freshness)
+
+Everything is env-gated: with no DSN set, both apps run exactly as before
+(local dev and CI never talk to Sentry).
+
+**Sentry** ([sentry.io](https://sentry.io), free tier is plenty at MVP scale —
+one org, two projects):
+
+1. Create a **Python** project → copy its DSN → Railway env var `SENTRY_DSN`.
+   Unhandled 500s, job crashes (`log.exception` + APScheduler's own error
+   logs), and anything ERROR-level become issues. Errors only — tracing is
+   off, no PII is sent. Optional: `SENTRY_ENVIRONMENT` (defaults to
+   `production`).
+2. Create a **Next.js** project → copy its DSN → Vercel env var
+   `NEXT_PUBLIC_SENTRY_DSN`. Captures browser errors (hydration mismatches,
+   render crashes via `global-error.tsx`) and server/ISR errors. Optional but
+   recommended for readable stack traces: `SENTRY_ORG`, `SENTRY_PROJECT`, and
+   a `SENTRY_AUTH_TOKEN` (org auth token with `project:releases` scope) on
+   Vercel — source maps upload only when the token is present.
+
+**UptimeRobot** ([uptimerobot.com](https://uptimerobot.com), free tier, 5-min
+checks) — two monitors:
+
+| Monitor | Type | Target | Alert when |
+|---|---|---|---|
+| engine | Keyword | `https://<railway-domain>/health` | keyword `"healthy":true` **missing** |
+| web | HTTP(S) | `https://www.fplpal.com/` | not 200 |
+
+The keyword monitor is the important one: `/health` computes data freshness
+(`snapshot_age_hours` > 6 or `computed_age_hours` > 26 → `"healthy":false`),
+so it fires when the hourly snapshot or the nightly pipeline **silently
+stops**, not just when the process dies — the failure mode a bare 200 check
+can't see. The endpoint stays 200 either way, so "down" vs "stale" stay
+distinguishable in the alert.
+
 ## 3. Verify (in order)
 
-1. `https://<railway-domain>/health` → `ok: true` + provenance timestamps.
+1. `https://<railway-domain>/health` → `ok: true`, `healthy: true`, small
+   `snapshot_age_hours` / `computed_age_hours`, provenance timestamps.
 2. Vercel site loads; status bar shows the season/GW window (proves the
    rewrite works).
 3. Players / Fixtures pages populate (proves live parquets serve).
