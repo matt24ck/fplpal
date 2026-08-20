@@ -13,6 +13,7 @@ from __future__ import annotations
 import os
 import time
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime
 
 import numpy as np
 from fastapi import Depends, FastAPI, HTTPException, Request
@@ -28,6 +29,22 @@ from api.jobs import jobs_enabled, start_background
 from engine.config.season import load_season
 from engine.ingest.snapshot import latest_snapshot
 from engine.models.ratings import SUBSCORES
+
+# Error tracking: a no-op unless SENTRY_DSN is set (Railway env var). The
+# FastAPI integration reports unhandled 500s; the default logging integration
+# turns the jobs' log.exception(...) calls — and APScheduler's own job-crash
+# logs — into events, so the nightly pipeline can't fail silently. Errors
+# only: no tracing, no PII.
+if os.environ.get("SENTRY_DSN"):
+    import sentry_sdk
+
+    sentry_sdk.init(
+        dsn=os.environ["SENTRY_DSN"],
+        environment=os.environ.get("SENTRY_ENVIRONMENT", "production"),
+        release=os.environ.get("RAILWAY_GIT_COMMIT_SHA") or None,
+        traces_sample_rate=0.0,
+        send_default_pii=False,
+    )
 
 
 @asynccontextmanager
@@ -66,13 +83,53 @@ app.add_middleware(
 )
 
 
+# Freshness thresholds: the snapshot job is hourly but FPL's own maintenance
+# windows can stall it for a few hours around GW processing; the pipeline is
+# nightly. Beyond these ages something is broken, not slow.
+SNAPSHOT_STALE_HOURS = 6.0
+COMPUTED_STALE_HOURS = 26.0
+
+
+def _freshness(computed_at: str, snapshot_stamp: str | None, now: datetime | None = None) -> dict:
+    """Ages of the two heartbeats: the last pipeline run (provenance
+    ``computed_at``, ISO) and the last archived snapshot (filename stamp,
+    ``YYYYMMDDTHHMMSSZ``). ``stale`` means one of them stopped moving."""
+    now = now or datetime.now(UTC)
+    computed_age = (now - datetime.fromisoformat(computed_at)).total_seconds() / 3600
+    snapshot_age = None
+    if snapshot_stamp:
+        snap_dt = datetime.strptime(snapshot_stamp, "%Y%m%dT%H%M%SZ").replace(tzinfo=UTC)
+        snapshot_age = (now - snap_dt).total_seconds() / 3600
+    return {
+        "computed_age_hours": round(computed_age, 1),
+        "snapshot_age_hours": None if snapshot_age is None else round(snapshot_age, 1),
+        "stale": (
+            computed_age > COMPUTED_STALE_HOURS
+            or snapshot_age is None
+            or snapshot_age > SNAPSHOT_STALE_HOURS
+        ),
+    }
+
+
 @app.get("/health")
 def health() -> dict:
+    """Liveness + freshness. ``healthy`` is the one keyword an external
+    uptime monitor should assert: it goes false when live data is missing,
+    when the hourly snapshot job stalls, or when the nightly pipeline stops
+    refreshing — the silent-stale failure a bare 200 check would miss."""
     try:
-        return {"ok": True, **get_store().provenance}
+        prov = get_store().provenance
     except FileNotFoundError:
         # first boot on an empty volume: the jobs thread is still seeding
-        return {"ok": False, "status": "no live data yet — seeding/pipeline pending"}
+        return {
+            "ok": False,
+            "healthy": False,
+            "status": "no live data yet — seeding/pipeline pending",
+        }
+    snap = latest_snapshot("bootstrap_static")
+    stamp = snap[0].stem.replace(".json", "") if snap else None
+    fresh = _freshness(prov["computed_at"], stamp)
+    return {"ok": True, "healthy": not fresh.pop("stale"), **fresh, **prov}
 
 
 @app.get("/meta")
@@ -148,6 +205,7 @@ def explorer() -> dict:
             {
                 "code": int(r.code),
                 "player": r.player,
+                "web_name": r.web_name if isinstance(r.web_name, str) else None,
                 "team": r.team,
                 "position": r.position,
                 "price": int(r.price),

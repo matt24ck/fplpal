@@ -16,6 +16,12 @@ likelihood (position-level weights — the backup GK almost never autosubs in,
 outfield bench does occasionally). Locked/excluded player lists support
 "build around X" / "never Y" requests from the chat layer.
 
+Horizons differ by decision. The 15 is a horizon decision and is solved on
+``xpts`` (summed over the projection window). The XI and bench order are
+weekly decisions, so when an ``xpts_next`` column is supplied they are
+re-solved on the upcoming GW alone (``_relineup``). Captaincy stays on the
+horizon — see ``_relineup`` for the backtest that settled it.
+
 The multi-period transfer planner and chip advisor (PLAN §5) are in-season
 deliverables and intentionally not here yet.
 
@@ -41,6 +47,9 @@ BENCH_WEIGHTS = {"GKP": 0.04, "DEF": 0.16, "MID": 0.16, "FWD": 0.16}
 VICE_WEIGHT = 0.07
 
 REQUIRED_COLS = ["player", "team", "position", "price", "xpts"]
+# Optional per-GW column: xPts for the upcoming GW alone. When present the XI
+# is re-solved on it (see ``_relineup``); absent, everything runs on ``xpts``.
+NEXT_COL = "xpts_next"
 
 
 @dataclass
@@ -48,15 +57,18 @@ class SquadSolution:
     squad: pd.DataFrame = field(repr=False)  # 15 rows + in_xi/is_captain/is_vice/bench_order
     formation: str
     cost: float  # tenths of £m
-    xpts_xi: float  # XI + captain doubling, no bench/vice terms
+    xpts_xi: float  # XI + captain doubling over the horizon, no bench/vice terms
     objective: float  # full objective incl. bench + vice weights
     solve_seconds: float
+    xpts_xi_next: float | None = None  # same, for the upcoming GW only (needs NEXT_COL)
 
     def summary(self) -> str:
+        nxt = f" | next-GW {self.xpts_xi_next:.1f}" if self.xpts_xi_next is not None else ""
         lines = [
             (
                 f"formation {self.formation} | cost £{self.cost / 10:.1f}m | "
-                f"XI+captain xPts {self.xpts_xi:.1f} | solved in {self.solve_seconds * 1000:.0f}ms"
+                f"XI+captain xPts {self.xpts_xi:.1f}{nxt} | "
+                f"solved in {self.solve_seconds * 1000:.0f}ms"
             )
         ]
         xi = self.squad[self.squad["in_xi"]].sort_values(
@@ -87,9 +99,10 @@ def optimize_squad(
 
     ``players`` needs one row per candidate with REQUIRED_COLS (price in
     tenths of £m, ``xpts`` over the target horizon); ``p_play`` optional for
-    bench ordering. ``locked``/``excluded`` match against ``player`` or
-    ``code``. ``fix_squad=True`` turns this into lineup-only optimization
-    (the 15 must be exactly the rows passed).
+    bench ordering, ``xpts_next`` (NEXT_COL) optional to solve the XI on the
+    upcoming GW instead of the horizon. ``locked``/``excluded`` match against
+    ``player`` or ``code``. ``fix_squad=True`` turns this into lineup-only
+    optimization (the 15 must be exactly the rows passed).
     """
     rules = rules or load_season()
     sq_rules = rules.squad
@@ -167,12 +180,20 @@ def optimize_squad(
     out["in_xi"] = [xi[i].value() > 0.5 for i in chosen]
     out["is_captain"] = [cap[i].value() > 0.5 for i in chosen]
     out["is_vice"] = [vice[i].value() > 0.5 for i in chosen]
+    if NEXT_COL in out.columns:
+        out = _relineup(out, sq_rules)
+        elapsed = time.perf_counter() - t0
     out = _assign_bench_order(out)
 
     xi_rows = out[out["in_xi"]]
     counts = xi_rows["position"].value_counts()
     formation = f"{counts.get('DEF', 0)}-{counts.get('MID', 0)}-{counts.get('FWD', 0)}"
     xpts_xi = float(xi_rows["xpts"].sum() + xi_rows.loc[xi_rows["is_captain"], "xpts"].sum())
+    xpts_xi_next = None
+    if NEXT_COL in out.columns:
+        xpts_xi_next = float(
+            xi_rows[NEXT_COL].sum() + xi_rows.loc[xi_rows["is_captain"], NEXT_COL].sum()
+        )
     return SquadSolution(
         squad=out.reset_index(drop=True),
         formation=formation,
@@ -180,7 +201,64 @@ def optimize_squad(
         xpts_xi=xpts_xi,
         objective=float(pulp.value(prob.objective)),
         solve_seconds=elapsed,
+        xpts_xi_next=xpts_xi_next,
     )
+
+
+def _relineup(sq15: pd.DataFrame, sq_rules) -> pd.DataFrame:
+    """Re-solve the XI within an already-chosen 15 on the upcoming GW.
+
+    Which 15 to *own* is a horizon decision, but which 11 to *start* is a
+    weekly one — the XI is re-picked every gameweek, so it is solved on
+    ``NEXT_COL`` rather than the horizon sum.
+
+    Captaincy deliberately does not move with it. It is an argmax over 15
+    candidates, and taking the max of a noisy estimate favours whoever drew
+    the luckiest single week; the horizon sum shrinks toward player quality
+    and ranks captains better (2025-26 frozen replay: 6.11 vs 5.05 realized
+    pts/GW for a next-GW armband, and 1 GW was the worst of every horizon
+    from 1 to 8). Picking a top-11 *set* averages that noise out instead of
+    amplifying it, which is why the XI wants the opposite horizon to the
+    armband.
+
+    So the captain is picked first, by the unchanged horizon rule, and forced
+    into the XI — FPL does not let you captain a substitute. Only the
+    remaining ten slots are optimized, on the upcoming GW alone. Keeping the
+    two metrics in separate steps avoids valuing the armband in horizon units
+    inside a per-week objective, which would over-reward captaining a player
+    who is about to blank.
+    """
+    p = sq15.reset_index(drop=True)
+    n = len(p)
+    xp_n = p[NEXT_COL].to_numpy(dtype=float)
+    pos = p["position"].astype(str).to_numpy()
+    bench_w = p["position"].map(BENCH_WEIGHTS).to_numpy(dtype=float)
+
+    # Horizon leader takes the armband, skipping anyone with no fixture this
+    # week — a blanking captain scores nothing and cannot be the right pick.
+    order = list(p["xpts"].sort_values(ascending=False).index)
+    cap_i = next((i for i in order if xp_n[i] > 0), order[0])
+
+    prob = pulp.LpProblem("fpl_lineup", pulp.LpMaximize)
+    xi = pulp.LpVariable.dicts("xi", range(n), cat="Binary")
+    prob += pulp.lpSum(xi[i] * xp_n[i] + bench_w[i] * (1 - xi[i]) * xp_n[i] for i in range(n))
+    prob += pulp.lpSum(xi[i] for i in range(n)) == 11
+    prob += xi[cap_i] == 1
+    for position, (lo, hi) in sq_rules.formation.items():
+        in_pos = pulp.lpSum(xi[i] for i in range(n) if pos[i] == position)
+        prob += in_pos >= lo
+        prob += in_pos <= hi
+
+    prob.solve(_solver())
+    if pulp.LpStatus[prob.status] != "Optimal":
+        raise RuntimeError(f"lineup MILP not optimal: {pulp.LpStatus[prob.status]}")
+
+    p["in_xi"] = [xi[i].value() > 0.5 for i in range(n)]
+    # Vice is the captain's stand-in, so it follows the same horizon rule.
+    vice_i = next(i for i in order if p.at[i, "in_xi"] and i != cap_i)
+    p["is_captain"] = [i == cap_i for i in range(n)]
+    p["is_vice"] = [i == vice_i for i in range(n)]
+    return p
 
 
 def optimize_lineup(squad15: pd.DataFrame, rules: SeasonRules | None = None) -> SquadSolution:
@@ -193,11 +271,16 @@ def optimize_lineup(squad15: pd.DataFrame, rules: SeasonRules | None = None) -> 
 
 
 def _assign_bench_order(out: pd.DataFrame) -> pd.DataFrame:
-    """FPL bench: GK in slot 1, outfield in autosub priority (best first)."""
+    """FPL bench: GK in slot 1, outfield in autosub priority (best first).
+
+    Autosubs resolve within the upcoming GW, so the order ranks on NEXT_COL
+    when it is available.
+    """
     out = out.copy()
     out["bench_order"] = 0
     bench = out[~out["in_xi"]]
-    key = bench["xpts"] * bench["p_play"] if "p_play" in bench.columns else bench["xpts"]
+    col = NEXT_COL if NEXT_COL in bench.columns else "xpts"
+    key = bench[col] * bench["p_play"] if "p_play" in bench.columns else bench[col]
     outfield = bench[bench["position"] != "GKP"].loc[
         key[bench["position"] != "GKP"].sort_values(ascending=False).index
     ]

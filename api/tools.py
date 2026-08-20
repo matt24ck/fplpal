@@ -45,6 +45,11 @@ def _r(x, nd: int = 2):
     return None if x is None or (isinstance(x, float) and np.isnan(x)) else round(float(x), nd)
 
 
+def _web_name(v) -> str | None:
+    """The FPL "known as" display name; None for pre-web_name parquets (NaN)."""
+    return v if isinstance(v, str) and v else None
+
+
 def _resolve(store: LiveStore, query: str) -> tuple[pd.Series | None, dict | None]:
     matches = store.find_players(query)
     if len(matches) == 0:
@@ -69,8 +74,10 @@ def _resolve(store: LiveStore, query: str) -> tuple[pd.Series | None, dict | Non
 def _player_summary(store: LiveStore, row: pd.Series) -> dict:
     code = int(row["code"])
     rating = store.player_rating(code)
+    wn = _web_name(row.get("web_name"))
     out = {
         "player": row["player"],
+        **({"web_name": wn} if wn else {}),
         "team": row["team"],
         "position": row["position"],
         "price": f"£{row['price'] / 10:.1f}m",
@@ -324,20 +331,24 @@ def _solution_payload(store: LiveStore, sol) -> dict:
     bench = sq[~sq["in_xi"]].sort_values("bench_order")
 
     def fmt(r) -> dict:
+        wn = _web_name(getattr(r, "web_name", None))
         d = {
             "player": r.player,
+            **({"web_name": wn} if wn else {}),
             "team": r.team,
             "position": r.position,
             "price": f"£{r.price / 10:.1f}m",
             "xpts": _r(r.xpts, 1),
         }
+        if hasattr(r, "xpts_next"):
+            d["xpts_this_gw"] = _r(r.xpts_next, 1)
         if r.is_captain:
             d["captain"] = True
         if r.is_vice:
             d["vice_captain"] = True
         return d
 
-    return {
+    out = {
         "formation": sol.formation,
         "cost": f"£{sol.cost / 10:.1f}m",
         "xi_plus_captain_xpts": _r(sol.xpts_xi, 1),
@@ -345,6 +356,14 @@ def _solution_payload(store: LiveStore, sol) -> dict:
         "bench_in_order": [fmt(r) for r in bench.itertuples()],
         "provenance": store.provenance,
     }
+    if sol.xpts_xi_next is not None:
+        out["xi_plus_captain_xpts_this_gw"] = _r(sol.xpts_xi_next, 1)
+        out["horizons"] = (
+            "the 15 and the captain are picked over the whole projection window "
+            "(xpts); the starting XI and bench order are picked for the upcoming "
+            "gameweek alone (xpts_this_gw)"
+        )
+    return out
 
 
 def _resolve_squad(store: LiveStore, players: list[str]) -> tuple[pd.DataFrame | None, dict | None]:
@@ -382,6 +401,7 @@ def import_team(team_id: int) -> dict:
         "squad": [
             {
                 "player": p["player"],
+                **({"web_name": p["web_name"]} if p.get("web_name") else {}),
                 "position": p["position"],
                 "team": p["team"],
                 "price": _fmt_m(p["current_price"]),

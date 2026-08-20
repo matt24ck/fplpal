@@ -31,13 +31,15 @@ type Horizon = "next" | "window";
  * imported real team both produce it. */
 type BoardPlayer = {
   player: string;
+  web_name?: string | null;
   position: Position;
   captain?: boolean;
   vice_captain?: boolean;
 };
 type BoardLineup = {
   formation: string;
-  xi_plus_captain_xpts?: number;
+  xi_plus_captain_xpts?: number; // over the projection window
+  xi_plus_captain_xpts_this_gw?: number; // upcoming GW only
   starting_xi: BoardPlayer[];
   bench_in_order: BoardPlayer[];
 };
@@ -57,6 +59,7 @@ function realLineup(
     firstGw != null ? (byName.get(name)?.gw_xpts[String(firstGw)] ?? 0) : 0;
   const toBoard = (p: (typeof squad)[number]): BoardPlayer => ({
     player: p.player,
+    web_name: p.web_name,
     position: p.position,
     captain: p.is_captain || undefined,
     vice_captain: p.is_vice_captain || undefined,
@@ -67,7 +70,7 @@ function realLineup(
   const capExtra = xi.filter((p) => p.is_captain).reduce((s, p) => s + gwXp(p.player), 0);
   return {
     formation: `${counts.DEF}-${counts.MID}-${counts.FWD}`,
-    xi_plus_captain_xpts: Math.round((base + capExtra) * 10) / 10,
+    xi_plus_captain_xpts_this_gw: Math.round((base + capExtra) * 10) / 10,
     starting_xi: xi.map(toBoard),
     bench_in_order: bench.map(toBoard),
   };
@@ -107,18 +110,17 @@ export default function MyTeamPage() {
   const sol: BoardLineup | undefined = real
     ? realLineup(real, byName, firstGw)
     : lineup.data;
+  // The XI is picked for the upcoming GW, so the headline is that GW's points
+  // (older payloads only carry the window figure).
+  const projected = sol?.xi_plus_captain_xpts_this_gw ?? sol?.xi_plus_captain_xpts;
   const squadNames = real ? (real.squad ?? []).map((p) => p.player) : names;
-  const toChip = (sp: {
-    player: string;
-    position: Position;
-    captain?: boolean;
-    vice_captain?: boolean;
-  }): ChipData => {
+  const toChip = (sp: BoardPlayer): ChipData => {
     const p = byName.get(sp.player);
     const nextGwXpts = p && firstGw != null ? p.gw_xpts[String(firstGw)] : undefined;
     return {
       code: p?.code,
       player: sp.player,
+      webName: sp.web_name ?? p?.web_name,
       team: p?.team ?? "",
       position: sp.position,
       price: p?.price,
@@ -208,8 +210,8 @@ export default function MyTeamPage() {
             )}
             {sol && (
               <span className="text-slate ml-auto font-mono text-sm">
-                XI + captain:{" "}
-                <strong className="text-ink">{pts(sol.xi_plus_captain_xpts)} pts</strong>
+                XI + captain, GW{firstGw ?? "…"}:{" "}
+                <strong className="text-ink">{pts(projected)} pts</strong>
               </span>
             )}
           </div>
@@ -231,7 +233,7 @@ export default function MyTeamPage() {
 
         <div className="w-full space-y-4 xl:w-72">
           <ThisWeek
-            projected={sol?.xi_plus_captain_xpts}
+            projected={projected}
             captain={sol?.starting_xi.find((p) => p.captain)?.player}
             formation={sol?.formation}
             flagged={flagged.map((f) => f.player)}

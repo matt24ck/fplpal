@@ -5,7 +5,8 @@ export const price = (tenths: number) => `£${(tenths / 10).toFixed(1)}m`;
 export const pts = (x: number | null | undefined, dp = 1) =>
   x == null ? "—" : x.toFixed(dp);
 
-/** Chip-face name: last word, keeping lowercase particles ("van Dijk"). */
+/** Chip-face fallback when the payload has no FPL web_name: last word of the
+ * full name, keeping lowercase particles ("van Dijk"). */
 export function chipName(full: string): string {
   const parts = full.trim().split(/\s+/);
   if (parts.length === 1) return parts[0];

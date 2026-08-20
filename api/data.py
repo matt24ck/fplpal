@@ -41,6 +41,10 @@ class LiveStore:
         self.proj = pd.read_parquet(self.live_dir / "projections_fixture.parquet")
         self.per_gw = pd.read_parquet(self.live_dir / "projections_gw.parquet")
         self.ratings = pd.read_parquet(self.live_dir / "ratings.parquet")
+        # Parquets written before the pipeline carried the FPL "known as" name:
+        # tolerate the missing column, the UI falls back to a surname heuristic.
+        if "web_name" not in self.proj.columns:
+            self.proj["web_name"] = None
 
         p = self.proj
         self.players = (
@@ -48,6 +52,7 @@ class LiveStore:
             .groupby("code", as_index=False)
             .agg(
                 player=("player", "first"),
+                web_name=("web_name", "first"),
                 team=("team", "first"),
                 position=("position", "first"),
                 price=("price", "first"),
@@ -58,6 +63,16 @@ class LiveStore:
                 exposure_90=("exposure_90", "max"),
             )
         )
+        # Upcoming GW alone (DGW rows summed). The 15 is a horizon decision but
+        # the XI is a weekly one, so the optimizer solves the lineup on this.
+        self.next_gw = int(p["gw"].min())
+        nxt = (
+            p[p["gw"] == self.next_gw]
+            .groupby("code", as_index=False)["xpts"]
+            .sum()
+            .rename(columns={"xpts": "xpts_next"})
+        )
+        self.players = self.players.merge(nxt, on="code", how="left").fillna({"xpts_next": 0.0})
         self.teams = sorted(p["team"].unique())
 
     @property

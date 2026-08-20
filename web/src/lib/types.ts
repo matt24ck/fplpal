@@ -45,6 +45,7 @@ export interface DataBasis {
 export interface ExplorerPlayer {
   code: number;
   player: string;
+  web_name?: string | null; // FPL's "known as" name ("Evanilson", not "Barbosa")
   team: string;
   position: Position;
   price: number; // tenths of £m
@@ -79,10 +80,12 @@ export interface MatrixData {
 
 export interface SolutionPlayer {
   player: string;
+  web_name?: string; // FPL's "known as" name, when the engine data carries it
   team: string;
   position: Position;
   price: string; // "£5.5m"
-  xpts: number;
+  xpts: number; // over the projection window
+  xpts_this_gw?: number; // upcoming GW only
   captain?: boolean;
   vice_captain?: boolean;
 }
@@ -90,10 +93,12 @@ export interface SolutionPlayer {
 export interface SquadSolution {
   formation: string; // "3-4-3" = DEF-MID-FWD
   cost: string;
-  xi_plus_captain_xpts: number;
+  xi_plus_captain_xpts: number; // over the projection window
+  xi_plus_captain_xpts_this_gw?: number; // upcoming GW only
   starting_xi: SolutionPlayer[];
   bench_in_order: SolutionPlayer[];
   provenance: Provenance;
+  horizons?: string;
   draft_cost?: string;
   optimal_squad_same_budget_xpts?: number;
   gap_to_optimal?: number;
@@ -197,6 +202,7 @@ export interface TeamPlayer {
   element: number;
   code: number;
   player: string;
+  web_name?: string | null; // FPL's "known as" name
   position: Position;
   team: string;
   current_price: number; // tenths of £m
