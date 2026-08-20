@@ -106,6 +106,65 @@ export interface SquadSolution {
   error?: string;
 }
 
+/** Screenshot extraction (POST /squad/extract) — the confirm-step payload.
+ * The vision model only transcribes labels; resolution is deterministic and
+ * nothing is rated until the user confirms the 15. */
+export interface ExtractCandidate {
+  code: number;
+  player: string;
+  web_name?: string | null;
+  team: string;
+  position: Position;
+  price: number; // tenths of £m
+  xpts: number;
+}
+
+export interface ExtractedPlayer {
+  shown: string; // the shirt label as read (may end in a truncation ellipsis)
+  row: Position | null;
+  is_captain: boolean;
+  is_vice: boolean;
+  price_shown: number | null; // £m as shown (Transfers view), e.g. 5.5
+  status: "ok" | "ambiguous" | "none";
+  method: string;
+  match: ExtractCandidate | null;
+  candidates: ExtractCandidate[];
+  row_mismatch: boolean; // resolver recovered from a mis-read pitch row
+}
+
+export interface SquadExtraction {
+  view: "pick_team" | "transfers" | "other" | null;
+  players: ExtractedPlayer[];
+  counts: Record<Position, number>;
+  complete: boolean; // all 15 resolved uniquely into a legal 2/5/5/3
+  warnings: string[];
+  provenance: Provenance;
+}
+
+/** Squad comparison (POST /squad/compare). */
+export interface PlayerBrief {
+  code: number;
+  player: string;
+  web_name?: string;
+  team: string;
+  position: Position;
+  price: string; // "£5.5m"
+  xpts: number;
+}
+
+export interface ComparedSquad extends SquadSolution {
+  label: string;
+  captain: SolutionPlayer | null;
+}
+
+export interface SquadComparison {
+  squads: ComparedSquad[];
+  verdict: { best: string; margin_xpts: number };
+  shared: PlayerBrief[]; // in every squad, sorted by -xpts
+  differentials: Record<string, PlayerBrief[]>; // only in that squad
+  provenance: Provenance;
+}
+
 export interface GwProjection {
   gw: number;
   opponent: string;

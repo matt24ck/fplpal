@@ -306,12 +306,71 @@ def squad_optimize(req: SquadRequest, user: str = Depends(require_user)) -> dict
 
 
 class DraftRequest(BaseModel):
-    players: list[str] = Field(min_length=15, max_length=15)
+    players: list[str] | None = Field(default=None, min_length=15, max_length=15)
+    codes: list[int] | None = Field(default=None, min_length=15, max_length=15)
 
 
 @app.post("/squad/rate")
 def squad_rate(req: DraftRequest) -> dict:
+    if (req.players is None) == (req.codes is None):
+        raise HTTPException(status_code=422, detail="provide exactly one of players or codes")
+    if req.codes is not None:
+        return _ok(t.rate_squad_codes(req.codes))
     return _ok(t.rate_my_draft(req.players))
+
+
+class CompareSquad(BaseModel):
+    label: str | None = None
+    codes: list[int] = Field(min_length=15, max_length=15)
+
+
+class CompareRequest(BaseModel):
+    squads: list[CompareSquad] = Field(min_length=2, max_length=4)
+
+
+# 2-4 lineup solves plus the same number of optimal-squad solves per request —
+# the heavy-MILP tier, so it sits behind auth like /squad/optimize.
+@app.post("/squad/compare")
+def squad_compare(req: CompareRequest, user: str = Depends(require_user)) -> dict:
+    return _ok(t.compare_squads([s.model_dump() for s in req.squads]))
+
+
+class ExtractRequest(BaseModel):
+    image: str = Field(min_length=1)  # base64 (a data: URL prefix is tolerated)
+    media_type: str = "image/jpeg"
+
+
+# Screenshot extraction spends real money per request (one vision call), so it
+# gets the chat treatment: signed-in users, a fixed-window per-user limit, and
+# the shared daily all-users token ceiling from api.chat.
+EXTRACT_LIMIT_PER_HOUR = int(os.environ.get("EXTRACT_RATE_LIMIT_PER_HOUR", "20"))
+_extract_hits: dict[str, list[float]] = {}
+
+
+@app.post("/squad/extract")
+def squad_extract(req: ExtractRequest, user: str = Depends(require_user)) -> dict:
+    from api import vision
+    from api.chat import budget_spent
+
+    if budget_spent():
+        raise HTTPException(
+            status_code=429,
+            detail="daily budget spent — resets at midnight UTC",
+        )
+    now = time.time()
+    hits = [ts for ts in _extract_hits.get(user, []) if now - ts < 3600]
+    if len(hits) >= EXTRACT_LIMIT_PER_HOUR:
+        raise HTTPException(
+            status_code=429,
+            detail="screenshot rate limit reached — try again in a little while",
+        )
+    hits.append(now)
+    _extract_hits[user] = hits
+
+    try:
+        return vision.extract_and_resolve(get_store(), req.image, req.media_type)
+    except vision.ExtractionError as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
 
 
 class TransferPlanRequest(BaseModel):
