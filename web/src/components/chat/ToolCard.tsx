@@ -171,7 +171,7 @@ function TeamImportCard({ r }: { r: Obj }) {
         {squad.map((p, i) => (
           <span key={i}>
             {i > 0 && ", "}
-            {String(p.player)}
+            {String(p.web_name ?? p.player)}
             {p.captain ? " (C)" : p.vice_captain ? " (V)" : ""}
           </span>
         ))}
@@ -460,6 +460,7 @@ function SolutionCard({ r }: { r: Obj }) {
 
   const toChip = (p: Obj): ChipData => ({
     player: String(p.player),
+    webName: typeof p.web_name === "string" ? p.web_name : undefined,
     team: String(p.team),
     position: p.position as Position,
     primary: pts(p.xpts as number),

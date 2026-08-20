@@ -41,6 +41,10 @@ class LiveStore:
         self.proj = pd.read_parquet(self.live_dir / "projections_fixture.parquet")
         self.per_gw = pd.read_parquet(self.live_dir / "projections_gw.parquet")
         self.ratings = pd.read_parquet(self.live_dir / "ratings.parquet")
+        # Parquets written before the pipeline carried the FPL "known as" name:
+        # tolerate the missing column, the UI falls back to a surname heuristic.
+        if "web_name" not in self.proj.columns:
+            self.proj["web_name"] = None
 
         p = self.proj
         self.players = (
@@ -48,6 +52,7 @@ class LiveStore:
             .groupby("code", as_index=False)
             .agg(
                 player=("player", "first"),
+                web_name=("web_name", "first"),
                 team=("team", "first"),
                 position=("position", "first"),
                 price=("price", "first"),

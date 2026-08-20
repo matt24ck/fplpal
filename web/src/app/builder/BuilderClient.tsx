@@ -87,6 +87,7 @@ export default function BuilderPage() {
     return {
       code: p.code,
       player: p.player,
+      webName: p.web_name,
       team: p.team,
       position: p.position,
       price: p.price,

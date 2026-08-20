@@ -15,6 +15,7 @@ import { Shirt } from "./Shirt";
 export interface ChipData {
   code?: number;
   player: string;
+  webName?: string | null; // FPL's "known as" name; falls back to a surname heuristic
   team: string;
   position: Position;
   price?: number; // tenths
@@ -170,7 +171,7 @@ export function PlayerChip({
               small ? "text-[8.5px] leading-[13px]" : "text-[10.5px] leading-4"
             }`}
           >
-            {chipName(chip.player)}
+            {chip.webName || chipName(chip.player)}
           </span>
 
           {chip.fixtures ? (

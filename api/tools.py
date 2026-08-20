@@ -45,6 +45,11 @@ def _r(x, nd: int = 2):
     return None if x is None or (isinstance(x, float) and np.isnan(x)) else round(float(x), nd)
 
 
+def _web_name(v) -> str | None:
+    """The FPL "known as" display name; None for pre-web_name parquets (NaN)."""
+    return v if isinstance(v, str) and v else None
+
+
 def _resolve(store: LiveStore, query: str) -> tuple[pd.Series | None, dict | None]:
     matches = store.find_players(query)
     if len(matches) == 0:
@@ -69,8 +74,10 @@ def _resolve(store: LiveStore, query: str) -> tuple[pd.Series | None, dict | Non
 def _player_summary(store: LiveStore, row: pd.Series) -> dict:
     code = int(row["code"])
     rating = store.player_rating(code)
+    wn = _web_name(row.get("web_name"))
     out = {
         "player": row["player"],
+        **({"web_name": wn} if wn else {}),
         "team": row["team"],
         "position": row["position"],
         "price": f"£{row['price'] / 10:.1f}m",
@@ -324,8 +331,10 @@ def _solution_payload(store: LiveStore, sol) -> dict:
     bench = sq[~sq["in_xi"]].sort_values("bench_order")
 
     def fmt(r) -> dict:
+        wn = _web_name(getattr(r, "web_name", None))
         d = {
             "player": r.player,
+            **({"web_name": wn} if wn else {}),
             "team": r.team,
             "position": r.position,
             "price": f"£{r.price / 10:.1f}m",
@@ -392,6 +401,7 @@ def import_team(team_id: int) -> dict:
         "squad": [
             {
                 "player": p["player"],
+                **({"web_name": p["web_name"]} if p.get("web_name") else {}),
                 "position": p["position"],
                 "team": p["team"],
                 "price": _fmt_m(p["current_price"]),

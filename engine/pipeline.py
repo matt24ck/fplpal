@@ -229,8 +229,12 @@ def build_live_projections(
     windows = add_subscores(build_windows(proj, horizon))
     windows["rating"] = load_ratings_model(refit_ratings).rate(windows)
 
+    # "Known as" display name from bootstrap (e.g. "Evanilson", not "Barbosa")
+    # — carried per-code so the UI never has to guess a surname from ``player``.
+    web_names = {int(e["code"]): e.get("web_name") for e in bootstrap["elements"]}
     now = pd.Timestamp.now(tz="UTC").isoformat()
     for frame in (proj, per_gw, windows):
+        frame["web_name"] = frame["code"].map(web_names)
         frame["data_snapshot"] = as_of
         frame["computed_at"] = now
     LIVE_DIR.mkdir(parents=True, exist_ok=True)

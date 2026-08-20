@@ -31,6 +31,7 @@ type Horizon = "next" | "window";
  * imported real team both produce it. */
 type BoardPlayer = {
   player: string;
+  web_name?: string | null;
   position: Position;
   captain?: boolean;
   vice_captain?: boolean;
@@ -58,6 +59,7 @@ function realLineup(
     firstGw != null ? (byName.get(name)?.gw_xpts[String(firstGw)] ?? 0) : 0;
   const toBoard = (p: (typeof squad)[number]): BoardPlayer => ({
     player: p.player,
+    web_name: p.web_name,
     position: p.position,
     captain: p.is_captain || undefined,
     vice_captain: p.is_vice_captain || undefined,
@@ -112,17 +114,13 @@ export default function MyTeamPage() {
   // (older payloads only carry the window figure).
   const projected = sol?.xi_plus_captain_xpts_this_gw ?? sol?.xi_plus_captain_xpts;
   const squadNames = real ? (real.squad ?? []).map((p) => p.player) : names;
-  const toChip = (sp: {
-    player: string;
-    position: Position;
-    captain?: boolean;
-    vice_captain?: boolean;
-  }): ChipData => {
+  const toChip = (sp: BoardPlayer): ChipData => {
     const p = byName.get(sp.player);
     const nextGwXpts = p && firstGw != null ? p.gw_xpts[String(firstGw)] : undefined;
     return {
       code: p?.code,
       player: sp.player,
+      webName: sp.web_name ?? p?.web_name,
       team: p?.team ?? "",
       position: sp.position,
       price: p?.price,

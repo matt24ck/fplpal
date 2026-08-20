@@ -45,6 +45,7 @@ export interface DataBasis {
 export interface ExplorerPlayer {
   code: number;
   player: string;
+  web_name?: string | null; // FPL's "known as" name ("Evanilson", not "Barbosa")
   team: string;
   position: Position;
   price: number; // tenths of £m
@@ -79,6 +80,7 @@ export interface MatrixData {
 
 export interface SolutionPlayer {
   player: string;
+  web_name?: string; // FPL's "known as" name, when the engine data carries it
   team: string;
   position: Position;
   price: string; // "£5.5m"
@@ -200,6 +202,7 @@ export interface TeamPlayer {
   element: number;
   code: number;
   player: string;
+  web_name?: string | null; // FPL's "known as" name
   position: Position;
   team: string;
   current_price: number; // tenths of £m

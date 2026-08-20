@@ -161,6 +161,7 @@ def build_team_state(
                 "element": el,
                 "code": int(e["code"]),
                 "player": f"{e['first_name']} {e['second_name']}".strip(),
+                "web_name": e.get("web_name"),
                 "position": POSITIONS.get(int(e["element_type"]), "?"),
                 "team": teams.get(int(e["team"]), "?"),
                 "current_price": int(e["now_cost"]),
