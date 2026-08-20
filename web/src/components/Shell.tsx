@@ -17,6 +17,7 @@ const NAV = [
   { href: "/players", label: "Players", short: "Players", icon: PlayersIcon },
   { href: "/fixtures", label: "Fixtures", short: "Fixtures", icon: FixturesIcon },
   // appended after the mobile tab slice's indices (0-4) — don't reorder above
+  { href: "/compare", label: "Compare", short: "Compare", icon: CompareIcon },
   { href: "/accuracy", label: "Accuracy", short: "Accuracy", icon: AccuracyIcon },
   { href: "/about", label: "About", short: "About", icon: AboutIcon },
 ];
@@ -278,6 +279,15 @@ function FixturesIcon() {
     <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden>
       <rect x="3" y="4" width="14" height="13" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
       <path d="M3 8.5h14M7.5 4v13M12.5 4v13" stroke="currentColor" strokeWidth="1.2" />
+    </svg>
+  );
+}
+function CompareIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden>
+      <rect x="2" y="4" width="7" height="12" rx="1" stroke="currentColor" strokeWidth="1.5" />
+      <rect x="11" y="4" width="7" height="12" rx="1" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M2 10h7M11 10h7" stroke="currentColor" strokeWidth="1.2" />
     </svg>
   );
 }

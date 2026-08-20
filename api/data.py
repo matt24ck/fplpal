@@ -16,6 +16,8 @@ from pathlib import Path
 
 import pandas as pd
 
+from api.resolve import Resolver
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
 LIVE_DIR = REPO_ROOT / "data" / "live"
 
@@ -74,6 +76,8 @@ class LiveStore:
         )
         self.players = self.players.merge(nxt, on="code", how="left").fillna({"xpts_next": 0.0})
         self.teams = sorted(p["team"].unique())
+        # shirt-label matching for screenshot extraction; rebuilt with the data
+        self.resolver = Resolver(self.players)
 
     @property
     def provenance(self) -> dict:

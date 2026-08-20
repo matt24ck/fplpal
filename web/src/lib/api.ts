@@ -8,6 +8,8 @@ import type {
   Meta,
   ProjectionsResponse,
   RatingExplain,
+  SquadComparison,
+  SquadExtraction,
   SquadSolution,
   TeamState,
   TransferPlan,
@@ -79,6 +81,15 @@ export const api = {
     token?: string,
   ) => post<SquadSolution>("/squad/optimize", body, token),
   rateDraft: (players: string[]) => post<SquadSolution>("/squad/rate", { players }),
+  // post-confirmation path for screenshot-extracted squads (codes skip name resolution)
+  rateCodes: (codes: number[]) => post<SquadSolution>("/squad/rate", { codes }),
+  // signed-in only: one vision call per image — the API rate-limits and meters it
+  extractSquad: (body: { image: string; media_type?: string }, token?: string) =>
+    post<SquadExtraction>("/squad/extract", body, token),
+  compareSquads: (
+    body: { squads: { label?: string; codes: number[] }[] },
+    token?: string,
+  ) => post<SquadComparison>("/squad/compare", body, token),
   planTransfers: (
     body: {
       players?: string[];

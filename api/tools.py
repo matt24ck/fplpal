@@ -302,20 +302,24 @@ def build_squad(
 def rate_my_draft(players: list[str]) -> dict:
     """Rate a 15-man draft: best XI/captain from it, and the gap to the optimal squad."""
     store = get_store()
-    rows, errors = [], []
-    for q in players:
-        row, err = _resolve(store, q)
-        (errors.append(err) if err else rows.append(row))
-    if errors:
-        return {"errors": errors}
-    if len(rows) != 15:
-        return {"error": f"a draft needs exactly 15 players, got {len(rows)}"}
+    squad_df, err = _resolve_squad(store, players)
+    if err:
+        return err
+    return _rate_squad(store, squad_df)
 
-    squad_df = pd.DataFrame(rows)
-    counts = squad_df["position"].value_counts().to_dict()
-    if counts != {"DEF": 5, "MID": 5, "GKP": 2, "FWD": 3}:
-        return {"error": f"invalid squad shape {counts}, need 2 GKP / 5 DEF / 5 MID / 3 FWD"}
 
+def rate_squad_codes(codes: list[int]) -> dict:
+    """Rate a 15-man squad given by stable FPL codes — the post-confirmation
+    path for screenshot-extracted squads, where name resolution already
+    happened and re-resolving could reintroduce ambiguity."""
+    store = get_store()
+    squad_df, err = _squad_from_codes(store, codes)
+    if err:
+        return err
+    return _rate_squad(store, squad_df)
+
+
+def _rate_squad(store: LiveStore, squad_df: pd.DataFrame) -> dict:
     sol = optimize_lineup(squad_df)
     optimal = optimize_squad(store.players, budget=int(squad_df["price"].sum()))
     out = _solution_payload(store, sol)
@@ -323,6 +327,76 @@ def rate_my_draft(players: list[str]) -> dict:
     out["optimal_squad_same_budget_xpts"] = _r(optimal.xpts_xi, 1)
     out["gap_to_optimal"] = _r(optimal.xpts_xi - sol.xpts_xi, 1)
     return out
+
+
+def compare_squads(squads: list[dict]) -> dict:
+    """Rate 2-4 squads (each ``{label?, codes}``) and diff them.
+
+    Every squad gets the full rate treatment (best XI/captain, gap to optimal
+    at its own budget); the diff layer is plain set arithmetic — shared players
+    appear in every squad, a differential appears in exactly one.
+    """
+    if len(squads) < 2:
+        return {"error": "compare needs at least two squads"}
+    store = get_store()
+    labels: list[str] = []
+    for i, sq in enumerate(squads):
+        label = (sq.get("label") or "").strip() or f"Team {chr(65 + i)}"
+        while label in labels:  # duplicate labels would collide in the diff maps
+            label += " (2)"
+        labels.append(label)
+
+    rated: list[tuple[str, set[int], dict]] = []
+    for label, sq in zip(labels, squads):
+        squad_df, err = _squad_from_codes(store, sq["codes"])
+        if err:
+            detail = err.get("error") or "; ".join(map(str, err.get("errors", [])))
+            return {"error": f"{label}: {detail}"}
+        rated.append((label, set(sq["codes"]), _rate_squad(store, squad_df)))
+
+    def _brief(code: int) -> dict:
+        r = store.players[store.players["code"] == code].iloc[0]
+        wn = _web_name(r.get("web_name"))
+        return {
+            "code": int(code),
+            "player": r["player"],
+            **({"web_name": wn} if wn else {}),
+            "team": r["team"],
+            "position": r["position"],
+            "price": f"£{r['price'] / 10:.1f}m",
+            "xpts": _r(r["xpts"], 1),
+        }
+
+    def _by_xpts(codes: set[int]) -> list[dict]:
+        return sorted((_brief(c) for c in codes), key=lambda p: -p["xpts"])
+
+    shared = set.intersection(*(codes for _, codes, _ in rated))
+    differentials = {
+        label: _by_xpts(codes - set.union(*(c for lb, c, _ in rated if lb != label)))
+        for label, codes, _ in rated
+    }
+
+    def _captain(payload: dict) -> dict | None:
+        return next((p for p in payload["starting_xi"] if p.get("captain")), None)
+
+    ranked = sorted(rated, key=lambda t: -t[2]["xi_plus_captain_xpts"])
+    best_label, _, best_payload = ranked[0]
+    runner_up = ranked[1][2]
+    return {
+        "squads": [
+            {"label": label, "captain": _captain(payload), **payload} for label, _, payload in rated
+        ],
+        "verdict": {
+            "best": best_label,
+            # margin over the runner-up on the horizon number the rate card leads with
+            "margin_xpts": _r(
+                best_payload["xi_plus_captain_xpts"] - runner_up["xi_plus_captain_xpts"], 1
+            ),
+        },
+        "shared": _by_xpts(shared),
+        "differentials": differentials,
+        "provenance": store.provenance,
+    }
 
 
 def _solution_payload(store: LiveStore, sol) -> dict:
@@ -377,10 +451,35 @@ def _resolve_squad(store: LiveStore, players: list[str]) -> tuple[pd.DataFrame |
     if len(rows) != 15:
         return None, {"error": f"a squad needs exactly 15 players, got {len(rows)}"}
     squad_df = pd.DataFrame(rows)
+    shape_err = _shape_error(squad_df)
+    if shape_err:
+        return None, {"error": shape_err}
+    return squad_df, None
+
+
+def _squad_from_codes(
+    store: LiveStore, codes: list[int]
+) -> tuple[pd.DataFrame | None, dict | None]:
+    """Resolve 15 stable FPL codes to rows; error payload if codes or shape are off."""
+    if len(codes) != len(set(codes)):
+        return None, {"error": "duplicate players in squad"}
+    sub = store.players[store.players["code"].isin(codes)].reset_index(drop=True)
+    missing = sorted(set(codes) - {int(c) for c in sub["code"]})
+    if missing:
+        return None, {"error": f"unknown player codes: {missing}"}
+    if len(sub) != 15:
+        return None, {"error": f"a squad needs exactly 15 players, got {len(sub)}"}
+    shape_err = _shape_error(sub)
+    if shape_err:
+        return None, {"error": shape_err}
+    return sub, None
+
+
+def _shape_error(squad_df: pd.DataFrame) -> str | None:
     counts = squad_df["position"].value_counts().to_dict()
     if counts != {"DEF": 5, "MID": 5, "GKP": 2, "FWD": 3}:
-        return None, {"error": f"invalid squad shape {counts}, need 2 GKP / 5 DEF / 5 MID / 3 FWD"}
-    return squad_df, None
+        return f"invalid squad shape {counts}, need 2 GKP / 5 DEF / 5 MID / 3 FWD"
+    return None
 
 
 def _fmt_m(tenths: float | None) -> str | None:
