@@ -77,9 +77,11 @@ function realLineup(
 }
 
 export default function MyTeamPage() {
-  const { teamId } = useApp();
+  const { teamId, setTeamId } = useApp();
   const team = useTeamState(teamId);
   const real = team.data?.status === "ok" ? team.data : null;
+  const teamPending = team.data?.status === "pending";
+  const teamError = team.error ? String((team.error as Error).message) : null;
   const { names, complete, ready, players } = useDraftSquad();
   const lineup = useDraftLineup(names, complete && !real);
   const { data: explorer } = useExplorer();
@@ -101,8 +103,8 @@ export default function MyTeamPage() {
       <PageShell title="My Team">
         <Onboarding
           drafted={players.length}
-          teamPending={team.data?.status === "pending"}
-          teamError={team.error ? String((team.error as Error).message) : null}
+          teamPending={teamPending}
+          teamError={teamError}
         />
       </PageShell>
     );
@@ -175,8 +177,12 @@ export default function MyTeamPage() {
               {" "}
               · rank <span className="font-mono">{real.overall_rank.toLocaleString()}</span>
             </>
-          )}
-          {real.note && <span className="text-slate/80 block text-xs">{real.note}</span>}
+          )}{" "}
+          ·{" "}
+          <button onClick={() => setTeamId(null)} className="text-royal underline">
+            change team
+          </button>
+          {real.note &&<span className="text-slate/80 block text-xs">{real.note}</span>}
           {real.warnings?.map((w) => (
             <span key={w} className="text-card-yellow block text-xs">
               ⚠ {w}
@@ -240,6 +246,8 @@ export default function MyTeamPage() {
             names={squadNames}
             real={real}
           />
+          {/* a full draft hides onboarding — keep the import in reach */}
+          {!real && <TeamIdCard teamPending={teamPending} teamError={teamError} />}
           <ChipsCard state={real} />
           {/* desktop finds About in the masthead nav; mobile gets it here */}
           <Link
@@ -370,15 +378,16 @@ function Onboarding({
   teamPending?: boolean;
   teamError?: string | null;
 }) {
-  const { teamId, setTeamId } = useApp();
-  const [idInput, setIdInput] = useState("");
+  const { data: meta } = useMeta();
 
   return (
     <div className="mx-auto max-w-3xl">
       {/* the handshake: Pal, front and center */}
       <section className="masthead text-chalk rounded-2xl px-6 py-8 sm:px-10 sm:py-12">
         <p className="font-chip text-neon text-xs font-bold tracking-wider">
-          2026/27 · Pre-season
+          {meta
+            ? `${meta.provenance.season.replace("-", "/")} · GW${meta.provenance.gw_window[0]}`
+            : "FPL Pal"}
         </p>
         <h2 className="font-hero mt-2 text-3xl leading-tight sm:text-5xl">
           Draft it like an analyst.
@@ -409,53 +418,89 @@ function Onboarding({
           </Link>
         </div>
 
-        <div className="border-line bg-chalk rounded-xl border p-5">
-          <h3 className="font-chip text-sm font-semibold tracking-wide">Have an FPL team?</h3>
-          <p className="text-slate mt-1 text-sm">
-            Save your team ID now — squad import opens after the GW1 deadline
-            (FPL only makes picks public then).
-          </p>
-          {teamId ? (
-            <div className="mt-4 text-sm">
-              <p>
-                Saved: <span className="font-mono">{teamId}</span>{" "}
-                <button onClick={() => setTeamId(null)} className="text-royal underline">
-                  change
-                </button>
-              </p>
-              {teamPending && (
-                <p className="text-neon-deep mt-1.5 text-xs">
-                  ✓ ID checked — your squad imports here automatically once FPL
-                  makes picks public after the GW1 deadline.
-                </p>
-              )}
-              {teamError && (
-                <p className="text-card-red mt-1.5 text-xs">{teamError}</p>
-              )}
-            </div>
-          ) : (
-            <form
-              className="mt-4 flex gap-2"
-              onSubmit={(e) => {
-                e.preventDefault();
-                if (idInput.trim()) setTeamId(idInput.trim());
-              }}
-            >
-              <input
-                value={idInput}
-                onChange={(e) => setIdInput(e.target.value)}
-                inputMode="numeric"
-                placeholder="Team ID"
-                aria-label="FPL team ID"
-                className="border-line bg-paper w-32 rounded-full border px-3 py-2 font-mono text-sm"
-              />
-              <button className="border-line hover:border-royal rounded-full border px-4 py-2 text-sm font-medium">
-                Save
-              </button>
-            </form>
-          )}
-        </div>
+        <TeamIdCard teamPending={teamPending} teamError={teamError} className="p-5" />
       </div>
+    </div>
+  );
+}
+
+/** The team ID out of a bare ID or a pasted FPL link
+ * (fantasy.premierleague.com/entry/1234567/event/7). */
+function parseTeamId(raw: string): string | null {
+  const s = raw.trim();
+  if (/^\d+$/.test(s)) return s;
+  return s.match(/\/entry\/(\d+)/)?.[1] ?? null;
+}
+
+function TeamIdCard({
+  teamPending,
+  teamError,
+  className = "p-4",
+}: {
+  teamPending?: boolean;
+  teamError?: string | null;
+  className?: string;
+}) {
+  const { teamId, setTeamId } = useApp();
+  const [idInput, setIdInput] = useState("");
+  const [invalid, setInvalid] = useState(false);
+
+  return (
+    <div className={`border-line bg-chalk rounded-xl border ${className}`}>
+      <h3 className="font-chip text-sm font-semibold tracking-wide">Have an FPL team?</h3>
+      <p className="text-slate mt-1 text-sm">
+        Paste your team ID or your FPL points-page link to import your squad,
+        bank, and free transfers.
+      </p>
+      {teamId ? (
+        <div className="mt-4 text-sm">
+          <p>
+            Saved: <span className="font-mono">{teamId}</span>{" "}
+            <button onClick={() => setTeamId(null)} className="text-royal underline">
+              change
+            </button>
+          </p>
+          {teamPending && (
+            <p className="text-neon-deep mt-1.5 text-xs">
+              ✓ ID checked — your squad imports here automatically once FPL
+              makes picks public after the GW1 deadline.
+            </p>
+          )}
+          {teamError && <p className="text-card-red mt-1.5 text-xs">{teamError}</p>}
+        </div>
+      ) : (
+        <form
+          className="mt-4"
+          onSubmit={(e) => {
+            e.preventDefault();
+            const id = parseTeamId(idInput);
+            setInvalid(!id);
+            if (id) setTeamId(id);
+          }}
+        >
+          <div className="flex gap-2">
+            <input
+              value={idInput}
+              onChange={(e) => {
+                setIdInput(e.target.value);
+                setInvalid(false);
+              }}
+              placeholder="Team ID"
+              aria-label="FPL team ID or points-page link"
+              className="border-line bg-paper w-32 rounded-full border px-3 py-2 font-mono text-sm"
+            />
+            <button className="border-line hover:border-royal rounded-full border px-4 py-2 text-sm font-medium">
+              Import
+            </button>
+          </div>
+          {invalid && (
+            <p className="text-card-red mt-1.5 text-xs">
+              That doesn&apos;t look like a team ID — it&apos;s the number after
+              /entry/ in your FPL points-page link.
+            </p>
+          )}
+        </form>
+      )}
     </div>
   );
 }
