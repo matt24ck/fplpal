@@ -122,10 +122,10 @@ def optimize_squad(
     bench_w = p["position"].map(BENCH_WEIGHTS).to_numpy(dtype=float)
 
     prob = pulp.LpProblem("fpl_squad", pulp.LpMaximize)
-    sq = pulp.LpVariable.dicts("sq", range(n), cat="Binary")
-    xi = pulp.LpVariable.dicts("xi", range(n), cat="Binary")
-    cap = pulp.LpVariable.dicts("cap", range(n), cat="Binary")
-    vice = pulp.LpVariable.dicts("vice", range(n), cat="Binary")
+    sq = prob.add_variable_dicts("sq", range(n), cat="Binary")
+    xi = prob.add_variable_dicts("xi", range(n), cat="Binary")
+    cap = prob.add_variable_dicts("cap", range(n), cat="Binary")
+    vice = prob.add_variable_dicts("vice", range(n), cat="Binary")
 
     prob += pulp.lpSum(
         xi[i] * xp[i]
@@ -240,7 +240,7 @@ def _relineup(sq15: pd.DataFrame, sq_rules) -> pd.DataFrame:
     cap_i = next((i for i in order if xp_n[i] > 0), order[0])
 
     prob = pulp.LpProblem("fpl_lineup", pulp.LpMaximize)
-    xi = pulp.LpVariable.dicts("xi", range(n), cat="Binary")
+    xi = prob.add_variable_dicts("xi", range(n), cat="Binary")
     prob += pulp.lpSum(xi[i] * xp_n[i] + bench_w[i] * (1 - xi[i]) * xp_n[i] for i in range(n))
     prob += pulp.lpSum(xi[i] for i in range(n)) == 11
     prob += xi[cap_i] == 1

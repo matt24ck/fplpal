@@ -213,15 +213,15 @@ def optimize_transfers(
 
     prob = pulp.LpProblem("fpl_transfers", pulp.LpMaximize)
     rng, ts = range(n), range(T)
-    sq = pulp.LpVariable.dicts("sq", (rng, ts), cat="Binary")
-    xi = pulp.LpVariable.dicts("xi", (rng, ts), cat="Binary")
-    cap = pulp.LpVariable.dicts("cap", (rng, ts), cat="Binary")
-    vice = pulp.LpVariable.dicts("vice", (rng, ts), cat="Binary")
-    buy = pulp.LpVariable.dicts("buy", (rng, ts), cat="Binary")
-    sell = pulp.LpVariable.dicts("sell", (rng, ts), cat="Binary")
-    hits = pulp.LpVariable.dicts("hits", ts, lowBound=0, upBound=max_hits_per_gw, cat="Integer")
-    ft = pulp.LpVariable.dicts("ft", ts, lowBound=0, upBound=tr_rules.max_banked, cat="Integer")
-    bk = pulp.LpVariable.dicts("bank", ts, lowBound=0)
+    sq = prob.add_variable_dicts("sq", (rng, ts), cat="Binary")
+    xi = prob.add_variable_dicts("xi", (rng, ts), cat="Binary")
+    cap = prob.add_variable_dicts("cap", (rng, ts), cat="Binary")
+    vice = prob.add_variable_dicts("vice", (rng, ts), cat="Binary")
+    buy = prob.add_variable_dicts("buy", (rng, ts), cat="Binary")
+    sell = prob.add_variable_dicts("sell", (rng, ts), cat="Binary")
+    hits = prob.add_variable_dicts("hits", ts, lowBound=0, upBound=max_hits_per_gw, cat="Integer")
+    ft = prob.add_variable_dicts("ft", ts, lowBound=0, upBound=tr_rules.max_banked, cat="Integer")
+    bk = prob.add_variable_dicts("bank", ts, lowBound=0)
 
     disc = [discount**t for t in ts]
     prob += pulp.lpSum(
