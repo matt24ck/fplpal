@@ -5,9 +5,9 @@ narrates their results — it never computes or invents a statistic. The
 grounding contract lives in the system prompt; the SSE stream surfaces every
 tool call and result so the UI can render provenance cards next to the prose.
 
-Model: ``claude-sonnet-5`` per PLAN §6 — the grounded design pushes all hard
-reasoning into the engine, so the LLM only parses intent, sequences tools,
-and narrates faithfully. The system prompt and tool definitions are cached
+Model: ``claude-haiku-5-5`` — the grounded design pushes all hard reasoning
+into the engine, so the LLM only parses intent, sequences tools, and narrates
+faithfully. The system prompt and tool definitions are cached
 (``cache_control``) to keep per-turn cost down.
 
 Requires Anthropic credentials (``ANTHROPIC_API_KEY`` or an ``ant auth
@@ -33,7 +33,7 @@ from api.data import get_store
 # so both the API server and the evals entry point pick it up.
 load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
-MODEL = "claude-sonnet-5"  # PLAN §6: orchestrator only — the engine does the math
+MODEL = "claude-haiku-5-5"  # PLAN §6: orchestrator only — the engine does the math
 MAX_TOKENS = 4096
 
 # --- daily spend ceiling across ALL users (PLAN §10) -----------------------
