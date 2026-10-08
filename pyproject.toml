@@ -11,7 +11,9 @@ dependencies = [
     "scipy>=1.13",
     "lightgbm>=4.3",
     "scikit-learn>=1.5",
-    "pulp>=2.8",
+    # 3.3.1 adds LpProblem.add_variable_dicts; 4.0 is a breaking rewrite
+    # (no LpStatus / prob.status / PULP_CBC_CMD) — migrate deliberately
+    "pulp>=3.3.1,<4",
     "highspy>=1.7",
     "fastapi>=0.111",
     "uvicorn>=0.30",
